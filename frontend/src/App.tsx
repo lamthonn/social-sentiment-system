@@ -8,11 +8,14 @@ import {
   Row,
   Spin,
   Statistic,
+  Tabs,
   Tag,
   Typography,
 } from 'antd'
 import { CheckCircleOutlined, CloseCircleOutlined } from '@ant-design/icons'
 import { api, type StatsResponse } from './api'
+import PostsTable from './PostsTable'
+import CollectorConfig from './CollectorConfig'
 
 const { Header, Content } = Layout
 const { Title, Text } = Typography
@@ -53,39 +56,62 @@ function App() {
           </Tag>
         </Header>
         <Content style={{ padding: 24 }}>
-          {error && (
-            <Alert
-              style={{ marginBottom: 16 }}
-              type="warning"
-              showIcon
-              message="Không lấy được số liệu thống kê"
-              description={error}
-            />
-          )}
-          {!stats && !error ? (
-            <Spin />
-          ) : (
-            <Row gutter={16}>
-              <Col span={8}>
-                <Card>
-                  <Statistic title="Tổng bài thu thập" value={stats?.total_posts ?? 0} />
-                </Card>
-              </Col>
-              <Col span={8}>
-                <Card>
-                  <Statistic title="Đã phân tích" value={stats?.analyzed ?? 0} />
-                </Card>
-              </Col>
-              <Col span={8}>
-                <Card>
-                  <Statistic title="Chủ đề nổi" value={0} />
-                </Card>
-              </Col>
-            </Row>
-          )}
-          <Text type="secondary" style={{ display: 'block', marginTop: 24 }}>
-            Khung Giai đoạn 0 — kết nối dữ liệu thật sẽ được thêm ở Giai đoạn 3-4.
-          </Text>
+          <Tabs
+            items={[
+              {
+                key: 'overview',
+                label: 'Tổng quan',
+                children: (
+                  <>
+                    {error && (
+                      <Alert
+                        style={{ marginBottom: 16 }}
+                        type="warning"
+                        showIcon
+                        message="Không lấy được số liệu thống kê"
+                        description={error}
+                      />
+                    )}
+                    {!stats && !error ? (
+                      <Spin />
+                    ) : (
+                      <Row gutter={16}>
+                        <Col span={8}>
+                          <Card>
+                            <Statistic title="Tổng bài thu thập" value={stats?.total_posts ?? 0} />
+                          </Card>
+                        </Col>
+                        <Col span={8}>
+                          <Card>
+                            <Statistic title="Đã phân tích" value={stats?.analyzed ?? 0} />
+                          </Card>
+                        </Col>
+                        <Col span={8}>
+                          <Card>
+                            <Statistic title="Chủ đề nổi" value={0} />
+                          </Card>
+                        </Col>
+                      </Row>
+                    )}
+                    <Text type="secondary" style={{ display: 'block', marginTop: 24 }}>
+                      "Đã phân tích" và "Chủ đề nổi" sẽ có dữ liệu thật khi mô hình cảm xúc/xu hướng
+                      được viết (Giai đoạn 1, 4) — hiện tại thu thập dữ liệu thô (Giai đoạn 2) đã chạy.
+                    </Text>
+                  </>
+                ),
+              },
+              {
+                key: 'posts',
+                label: 'Dữ liệu thu thập',
+                children: <PostsTable />,
+              },
+              {
+                key: 'collector-config',
+                label: 'Cấu hình thu thập',
+                children: <CollectorConfig />,
+              },
+            ]}
+          />
         </Content>
       </Layout>
     </ConfigProvider>

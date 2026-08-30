@@ -20,3 +20,6 @@ frontend-install:
 
 frontend:
 	npm run dev --prefix frontend
+
+collect-schedule:
+	python -m collector schedule

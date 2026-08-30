@@ -1,7 +1,7 @@
 """Định nghĩa bảng dữ liệu (ORM)."""
 from datetime import datetime
 
-from sqlalchemy import DateTime, Float, ForeignKey, Integer, String, Text
+from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from storage.database import Base
@@ -10,6 +10,10 @@ from storage.database import Base
 class RawPost(Base):
     """Một bài đăng/bình luận thu thập từ mạng xã hội (tác giả đã được ẩn danh)."""
     __tablename__ = "raw_posts"
+    __table_args__ = (
+        # Chặn thu thập trùng khi collector chạy lặp lại trên cùng 1 video/bài đăng.
+        UniqueConstraint("platform", "post_id", name="uq_raw_posts_platform_post_id"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     platform: Mapped[str] = mapped_column(String(50), index=True)
@@ -34,3 +38,31 @@ class AnalysisResult(Base):
     analyzed_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 
     post: Mapped["RawPost"] = relationship(back_populates="results")
+
+
+class SearchQuery(Base):
+    """Từ khóa để scheduler tự tìm video mới (thay cho sửa .env - cấu hình qua UI)."""
+    __tablename__ = "search_queries"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    platform: Mapped[str] = mapped_column(String(50), default="youtube")
+    query: Mapped[str] = mapped_column(String(255))
+    max_videos: Mapped[int] = mapped_column(Integer, default=10)
+    published_within_days: Mapped[int] = mapped_column(Integer, default=7)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class TrackedVideo(Base):
+    """Video ID cố định cần theo dõi liên tục (thay cho YOUTUBE_VIDEO_IDS/TIKTOK_VIDEO_IDS trong .env)."""
+    __tablename__ = "tracked_videos"
+    __table_args__ = (
+        UniqueConstraint("platform", "video_id", name="uq_tracked_videos_platform_video_id"),
+    )
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    platform: Mapped[str] = mapped_column(String(50))
+    video_id: Mapped[str] = mapped_column(String(128))
+    label: Mapped[str | None] = mapped_column(String(255), nullable=True)  # ghi chú tùy chọn (VD tên video)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)

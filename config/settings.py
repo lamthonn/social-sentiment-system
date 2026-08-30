@@ -25,6 +25,16 @@ class Settings(BaseSettings):
     def cors_origins_list(self) -> list[str]:
         return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
+    # Collector - credentials (Giai đoạn 2). Video ID theo dõi & từ khóa search được cấu
+    # hình qua UI (bảng tracked_videos/search_queries - xem collector/scheduler.py), KHÔNG
+    # còn nằm trong .env.
+    youtube_api_key: str = ""
+    collector_poll_interval_minutes: int = 60
+
+    # TikTok (cần đăng ký & được duyệt Research API trước)
+    tiktok_client_key: str = ""
+    tiktok_client_secret: str = ""
+
     @property
     def database_url(self) -> str:
         return (
