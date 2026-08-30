@@ -1,4 +1,4 @@
-.PHONY: install up down initdb api dashboard
+.PHONY: install up down initdb api frontend-install frontend
 
 install:
 	pip install -r requirements.txt
@@ -15,5 +15,8 @@ initdb:
 api:
 	uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
 
-dashboard:
-	streamlit run dashboard/app.py
+frontend-install:
+	npm install --prefix frontend
+
+frontend:
+	npm run dev --prefix frontend

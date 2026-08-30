@@ -11,3 +11,6 @@ data/*.json
 mlruns/
 .DS_Store
 /.vs
+frontend/node_modules/
+frontend/dist/
+frontend/.env

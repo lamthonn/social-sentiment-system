@@ -18,6 +18,12 @@ class Settings(BaseSettings):
     # API
     api_host: str = "0.0.0.0"
     api_port: int = 8000
+    # Origin của frontend (React dev server) được phép gọi API - phân tách bởi dấu phẩy
+    cors_origins: str = "http://localhost:5500"
+
+    @property
+    def cors_origins_list(self) -> list[str]:
+        return [origin.strip() for origin in self.cors_origins.split(",") if origin.strip()]
 
     @property
     def database_url(self) -> str:

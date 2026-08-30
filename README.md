@@ -2,11 +2,12 @@
 
 Khung dự án (**Giai đoạn 0**) cho đề tài "Nghiên cứu các kỹ thuật máy học hiện đại kết hợp đảm bảo an ninh, an toàn... để nhận diện và phân loại cảm xúc, xu hướng của người dùng".
 
-Giai đoạn 0 dựng sẵn: cấu trúc thư mục, PostgreSQL qua Docker, tầng cấu hình, tầng CSDL (ORM), hàm ẩn danh dữ liệu, khung API (FastAPI) và dashboard (Streamlit).
+Giai đoạn 0 dựng sẵn: cấu trúc thư mục, PostgreSQL qua Docker, tầng cấu hình, tầng CSDL (ORM), hàm ẩn danh dữ liệu, khung API (FastAPI) và frontend (React + Ant Design).
 
 ## Yêu cầu
 
 - Python 3.10+
+- Node.js 18+ (frontend)
 - Docker & Docker Compose
 
 ## Cài đặt
@@ -28,14 +29,20 @@ Mở `.env` và đổi `POSTGRES_PASSWORD` cùng `ANONYMIZATION_SALT` (salt nên
 ## Chạy
 
 ```bash
-make up          # khởi động PostgreSQL + Adminer (giao diện DB ở http://localhost:8080)
-make initdb      # tạo bảng trong cơ sở dữ liệu
-make api         # chạy API ở http://localhost:8000  (thử /health)
-make dashboard   # chạy dashboard ở http://localhost:8501
-make down        # dừng các container
+make up               # khởi động PostgreSQL + Adminer (giao diện DB ở http://localhost:8080)
+make initdb           # tạo bảng trong cơ sở dữ liệu
+make api              # chạy API ở http://localhost:8000  (thử /health)
+make frontend-install # cài phụ thuộc frontend (chạy 1 lần, hoặc khi package.json đổi)
+make frontend         # chạy frontend ở http://localhost:5500
+make down             # dừng các container
 ```
 
 Nếu không dùng `make`, xem các lệnh tương ứng trong `Makefile`.
+
+Frontend gọi API qua Vite dev proxy (`/api/*` -> `http://localhost:8000`, xem
+`frontend/vite.config.ts`) nên không cần cấu hình gì thêm khi chạy local. API
+cũng đã bật CORS cho origin `http://localhost:5500` (biến `CORS_ORIGINS`
+trong `.env`, xem `config/settings.py`).
 
 ## Cấu trúc thư mục
 
@@ -49,7 +56,7 @@ models/
   sentiment/     mô hình cảm xúc             (Giai đoạn 1)
   trend/         mô hình xu hướng            (Giai đoạn 4)
 api/             FastAPI
-dashboard/       Streamlit
+frontend/        React + Ant Design (Vite)
 data/            dữ liệu (không commit dữ liệu thô)
 notebooks/       thử nghiệm & đánh giá
 ```
