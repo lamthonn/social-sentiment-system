@@ -43,6 +43,7 @@ function App() {
     <ConfigProvider theme={{ token: { colorPrimary: '#1677ff' } }}>
       <Layout style={{ minHeight: '100vh' }}>
         <Header style={{ display: 'flex', alignItems: 'center', gap: 16 }}>
+          <img src="/favicon.svg" alt="Logo" style={{ height: 32, width: 32 }} />
           <Title level={4} style={{ color: '#fff', margin: 0 }}>
             Hệ thống phân tích cảm xúc & xu hướng mạng xã hội
           </Title>

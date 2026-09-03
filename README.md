@@ -4,6 +4,8 @@ Khung dự án (**Giai đoạn 0**) cho đề tài "Nghiên cứu các kỹ thu�
 
 Giai đoạn 0 dựng sẵn: cấu trúc thư mục, PostgreSQL qua Docker, tầng cấu hình, tầng CSDL (ORM), hàm ẩn danh dữ liệu, khung API (FastAPI) và frontend (React + Ant Design).
 
+> Hướng dẫn chạy chi tiết từng bước (kèm troubleshooting) xem tại **[HUONG_DAN_CHAY.md](HUONG_DAN_CHAY.md)**.
+
 ## Yêu cầu
 
 - Python 3.10+
