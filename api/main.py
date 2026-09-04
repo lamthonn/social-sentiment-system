@@ -55,6 +55,7 @@ def list_posts(
     page: int = Query(1, ge=1),
     page_size: int = Query(20, ge=1, le=100),
     platform: str | None = None,
+    category: str | None = None,
     session: Session = Depends(get_session),
 ) -> PostListResponse:
     """Danh sách bài đăng/comment đã thu thập, mới nhất trước, có phân trang."""
@@ -63,6 +64,9 @@ def list_posts(
     if platform:
         query = query.where(RawPost.platform == platform)
         count_query = count_query.where(RawPost.platform == platform)
+    if category:
+        query = query.where(RawPost.category == category)
+        count_query = count_query.where(RawPost.category == category)
 
     total = session.scalar(count_query) or 0
     items = (
@@ -80,6 +84,15 @@ def list_posts(
         page=page,
         page_size=page_size,
     )
+
+
+@app.get("/posts/categories", response_model=list[str])
+def list_post_categories(session: Session = Depends(get_session)) -> list[str]:
+    """Danh sách category khác nhau đang có trong raw_posts (để FE làm dropdown lọc)."""
+    rows = session.execute(
+        select(RawPost.category).where(RawPost.category.is_not(None)).distinct().order_by(RawPost.category)
+    ).scalars().all()
+    return list(rows)
 
 
 # ===== Cấu hình collector (thay cho sửa .env - scheduler đọc trực tiếp từ DB, có hiệu lực ngay) =====

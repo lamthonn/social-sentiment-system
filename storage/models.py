@@ -20,6 +20,9 @@ class RawPost(Base):
     post_id: Mapped[str] = mapped_column(String(128), index=True)
     author_hash: Mapped[str] = mapped_column(String(64), index=True)  # SHA-256, KHÔNG lưu ID gốc
     content: Mapped[str] = mapped_column(Text)
+    # Từ khóa search hoặc ghi chú (label) của video theo dõi đã sinh ra bài này - dùng để
+    # lọc/đánh giá model theo từng chủ đề sau này. NULL nếu thu thập thủ công không gắn chủ đề.
+    category: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     posted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     collected_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
 

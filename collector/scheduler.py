@@ -26,13 +26,16 @@ logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 
-def _load_tracked_videos() -> dict[str, list[str]]:
-    """{platform: [video_id, ...]} cho các video đang bật theo dõi (enabled=True)."""
-    result: dict[str, list[str]] = {}
+def _load_tracked_videos() -> dict[str, list[tuple[str, str | None]]]:
+    """{platform: [(video_id, category), ...]} cho các video đang bật theo dõi (enabled=True).
+
+    category lấy từ `label` của video (nếu có) - dùng để lọc dữ liệu theo chủ đề sau này.
+    """
+    result: dict[str, list[tuple[str, str | None]]] = {}
     with SessionLocal() as session:
         rows = session.execute(select(TrackedVideo).where(TrackedVideo.enabled.is_(True))).scalars().all()
         for row in rows:
-            result.setdefault(row.platform, []).append(row.video_id)
+            result.setdefault(row.platform, []).append((row.video_id, row.label))
     return result
 
 

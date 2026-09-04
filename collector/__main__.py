@@ -36,6 +36,10 @@ def main() -> None:
         "--max-pages", type=int, default=None,
         help="Giới hạn số trang comment/video (mặc định: lấy hết, mỗi trang tối đa 100 comment)",
     )
+    run_parser.add_argument(
+        "--category", default=None,
+        help="Gắn nhãn chủ đề cho dữ liệu thu thập lần này (tùy chọn, VD: \"giá vàng\") - dùng để lọc/đánh giá sau này",
+    )
 
     search_parser = sub.add_parser(
         "search", help="Tìm video YouTube mới theo từ khóa rồi thu thập comment luôn (không cần biết trước video ID)"
@@ -56,10 +60,7 @@ def main() -> None:
 
     sub.add_parser(
         "schedule",
-        help=(
-            "Chạy lập lịch định kỳ theo YOUTUBE_VIDEO_IDS / TIKTOK_VIDEO_IDS / "
-            "YOUTUBE_SEARCH_QUERIES trong .env (mục nào có cấu hình thì chạy)"
-        ),
+        help="Chạy lập lịch định kỳ theo cấu hình trong DB (tab \"Cấu hình thu thập\" trên frontend)",
     )
 
     args = parser.parse_args()
@@ -72,8 +73,8 @@ def main() -> None:
         else:
             from collector.tiktok_client import extract_video_id
 
-        video_ids = [extract_video_id(v) for v in args.video]
-        results = collect_many(args.platform, video_ids, max_pages=args.max_pages)
+        videos = [(extract_video_id(v), args.category) for v in args.video]
+        results = collect_many(args.platform, videos, max_pages=args.max_pages)
         for video_id, count in results.items():
             print(f"[{args.platform}] {video_id}: {count} comment mới")
 

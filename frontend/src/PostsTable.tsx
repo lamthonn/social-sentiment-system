@@ -16,19 +16,27 @@ export default function PostsTable() {
   const [page, setPage] = useState(1)
   const [pageSize, setPageSize] = useState(20)
   const [platform, setPlatform] = useState<string | undefined>(undefined)
+  const [category, setCategory] = useState<string | undefined>(undefined)
+  const [categoryOptions, setCategoryOptions] = useState<string[]>([])
   const [loading, setLoading] = useState(false)
+
+  useEffect(() => {
+    api.postCategories().then(setCategoryOptions).catch(() => {
+      // Không chặn màn hình nếu lỗi - chỉ là dropdown filter, không có cũng không sao.
+    })
+  }, [])
 
   useEffect(() => {
     setLoading(true)
     api
-      .posts({ page, pageSize, platform })
+      .posts({ page, pageSize, platform, category })
       .then((res) => {
         setData(res.items)
         setTotal(res.total)
       })
       .catch(() => message.error('Không tải được dữ liệu bài đăng - kiểm tra API/kết nối DB'))
       .finally(() => setLoading(false))
-  }, [page, pageSize, platform])
+  }, [page, pageSize, platform, category])
 
   const columns = [
     {
@@ -36,7 +44,14 @@ export default function PostsTable() {
       dataIndex: 'platform',
       key: 'platform',
       width: 100,
-      render: (value: string) => <Tag color="blue">{value}</Tag>,
+      render: (value: string) => <Tag color={value === 'youtube' ? 'red' : 'geekblue'}>{value}</Tag>,
+    },
+    {
+      title: 'Chủ đề',
+      dataIndex: 'category',
+      key: 'category',
+      width: 130,
+      render: (value: string | null) => (value ? <Tag>{value}</Tag> : <Text type="secondary">—</Text>),
     },
     {
       title: 'Nội dung',
@@ -88,8 +103,26 @@ export default function PostsTable() {
           style={{ width: 160 }}
           placeholder="Tất cả"
           value={platform}
-          onChange={setPlatform}
-          options={[{ value: 'youtube', label: 'YouTube' }]}
+          onChange={(value) => {
+            setPage(1)
+            setPlatform(value)
+          }}
+          options={[
+            { value: 'youtube', label: 'YouTube' },
+            { value: 'tiktok', label: 'TikTok' },
+          ]}
+        />
+        <Text>Lọc chủ đề:</Text>
+        <Select
+          allowClear
+          style={{ width: 200 }}
+          placeholder="Tất cả"
+          value={category}
+          onChange={(value) => {
+            setPage(1)
+            setCategory(value)
+          }}
+          options={categoryOptions.map((c) => ({ value: c, label: c }))}
         />
       </Space>
       <Table

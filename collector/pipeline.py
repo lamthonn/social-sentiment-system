@@ -49,7 +49,12 @@ def _parse_tiktok_comment(item: dict) -> dict:
     }
 
 
-def _ingest(platform: str, items: Iterable[dict], parse_fn: Callable[[dict], dict]) -> int:
+def _ingest(
+    platform: str,
+    items: Iterable[dict],
+    parse_fn: Callable[[dict], dict],
+    category: str | None = None,
+) -> int:
     """Duyệt qua các item thô (comment) của 1 video, ẩn danh tác giả, ghi raw_posts, bỏ qua trùng."""
     inserted = 0
     with SessionLocal() as session:
@@ -72,6 +77,7 @@ def _ingest(platform: str, items: Iterable[dict], parse_fn: Callable[[dict], dic
                     author_hash=hash_identifier(parsed["author_identifier"]),
                     content=parsed["content"],
                     posted_at=parsed["posted_at"],
+                    category=category,
                 )
             )
             inserted += 1
@@ -81,21 +87,25 @@ def _ingest(platform: str, items: Iterable[dict], parse_fn: Callable[[dict], dic
     return inserted
 
 
-def collect_youtube_video_comments(video_id: str, max_pages: int | None = None) -> int:
+def collect_youtube_video_comments(video_id: str, max_pages: int | None = None, category: str | None = None) -> int:
     """Thu thập comment của 1 video YouTube, ghi vào raw_posts. Trả về số bản ghi mới (bỏ qua trùng)."""
     from collector.youtube_client import iter_comment_threads
 
-    inserted = _ingest("youtube", iter_comment_threads(video_id, max_pages=max_pages), _parse_youtube_comment)
-    logger.info("[youtube] Video %s: thu thập %d comment mới", video_id, inserted)
+    inserted = _ingest(
+        "youtube", iter_comment_threads(video_id, max_pages=max_pages), _parse_youtube_comment, category=category,
+    )
+    logger.info("[youtube] Video %s (category=%s): thu thập %d comment mới", video_id, category, inserted)
     return inserted
 
 
-def collect_tiktok_video_comments(video_id: str, max_pages: int | None = None) -> int:
+def collect_tiktok_video_comments(video_id: str, max_pages: int | None = None, category: str | None = None) -> int:
     """Thu thập comment của 1 video TikTok, ghi vào raw_posts. Trả về số bản ghi mới (bỏ qua trùng)."""
     from collector.tiktok_client import iter_video_comments
 
-    inserted = _ingest("tiktok", iter_video_comments(video_id, max_pages=max_pages), _parse_tiktok_comment)
-    logger.info("[tiktok] Video %s: thu thập %d comment mới", video_id, inserted)
+    inserted = _ingest(
+        "tiktok", iter_video_comments(video_id, max_pages=max_pages), _parse_tiktok_comment, category=category,
+    )
+    logger.info("[tiktok] Video %s (category=%s): thu thập %d comment mới", video_id, category, inserted)
     return inserted
 
 
@@ -105,13 +115,22 @@ _COLLECTORS: dict[str, Callable[..., int]] = {
 }
 
 
-def collect_many(platform: str, video_ids: list[str], max_pages: int | None = None) -> dict[str, int]:
-    """Thu thập nhiều video của 1 nền tảng; lỗi ở 1 video không làm hỏng cả batch."""
+def collect_many(
+    platform: str,
+    videos: list[str] | list[tuple[str, str | None]],
+    max_pages: int | None = None,
+) -> dict[str, int]:
+    """Thu thập nhiều video của 1 nền tảng; lỗi ở 1 video không làm hỏng cả batch.
+
+    `videos` nhận list video_id thuần (không gắn category) HOẶC list (video_id, category)
+    - mỗi video có thể có category riêng (VD lấy từ label của từng tracked_video).
+    """
     collect_fn = _COLLECTORS[platform]
     results: dict[str, int] = {}
-    for video_id in video_ids:
+    for item in videos:
+        video_id, category = item if isinstance(item, tuple) else (item, None)
         try:
-            results[video_id] = collect_fn(video_id, max_pages=max_pages)
+            results[video_id] = collect_fn(video_id, max_pages=max_pages, category=category)
         except Exception:
             logger.exception("[%s] Lỗi khi thu thập video %s", platform, video_id)
             results[video_id] = 0
@@ -123,15 +142,19 @@ def discover_and_collect_youtube(
     max_videos: int = 10,
     published_within_days: int | None = 7,
     max_pages: int | None = None,
+    category: str | None = None,
 ) -> dict[str, dict]:
     """Tìm video YouTube mới theo từ khóa rồi thu thập luôn comment - không cần biết trước video ID.
 
     Trả về {video_id: {"title": ..., "inserted": số comment mới}}.
     ⚠️ search_videos() tốn 100 unit quota/lần gọi (xem cảnh báo trong youtube_client.py) -
     gọi 1 lần/từ khóa/lượt chạy, không phụ thuộc max_videos.
+    category mặc định = chính từ khóa search (query) nếu không truyền riêng - dùng để lọc
+    dữ liệu theo chủ đề sau này (xem RawPost.category).
     """
     from collector.youtube_client import search_videos
 
+    category = category if category is not None else query
     videos = search_videos(query, max_results=max_videos, published_after_days=published_within_days)
 
     results: dict[str, dict] = {}
@@ -139,7 +162,7 @@ def discover_and_collect_youtube(
         video_id = video["id"]["videoId"]
         title = video["snippet"]["title"]
         try:
-            inserted = collect_youtube_video_comments(video_id, max_pages=max_pages)
+            inserted = collect_youtube_video_comments(video_id, max_pages=max_pages, category=category)
         except Exception:
             logger.exception("[youtube-search] Lỗi khi thu thập video %s (%s)", video_id, title)
             inserted = 0

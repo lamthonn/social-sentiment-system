@@ -34,6 +34,7 @@ export interface RawPost {
   post_id: string
   author_hash: string
   content: string
+  category: string | null
   posted_at: string | null
   collected_at: string
 }
@@ -49,6 +50,7 @@ export interface ListPostsParams {
   page?: number
   pageSize?: number
   platform?: string
+  category?: string
 }
 
 export interface SearchQuery {
@@ -77,11 +79,13 @@ export type TrackedVideoInput = Omit<TrackedVideo, 'id' | 'created_at'>
 export const api = {
   health: () => request<HealthResponse>('/health'),
   stats: () => request<StatsResponse>('/stats'),
-  posts: ({ page = 1, pageSize = 20, platform }: ListPostsParams = {}) => {
+  posts: ({ page = 1, pageSize = 20, platform, category }: ListPostsParams = {}) => {
     const query = new URLSearchParams({ page: String(page), page_size: String(pageSize) })
     if (platform) query.set('platform', platform)
+    if (category) query.set('category', category)
     return request<PostListResponse>(`/posts?${query.toString()}`)
   },
+  postCategories: () => request<string[]>('/posts/categories'),
 
   searchQueries: {
     list: () => request<SearchQuery[]>('/search-queries'),

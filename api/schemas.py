@@ -12,6 +12,7 @@ class RawPostOut(BaseModel):
     post_id: str
     author_hash: str
     content: str
+    category: str | None
     posted_at: datetime | None
     collected_at: datetime
 
