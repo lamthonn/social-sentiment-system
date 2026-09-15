@@ -7,12 +7,15 @@ from sqlalchemy.orm import Session
 from api.schemas import (
     PostListResponse,
     RawPostOut,
+    SchedulerStatusOut,
+    SchedulerToggleIn,
     SearchQueryIn,
     SearchQueryOut,
     StatsResponse,
     TrackedVideoIn,
     TrackedVideoOut,
 )
+from collector import scheduler as job_scheduler
 from config.settings import settings
 from storage.database import get_session
 from storage.models import AnalysisResult, RawPost, SearchQuery, TrackedVideo
@@ -25,6 +28,17 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+@app.on_event("startup")
+def _start_scheduler() -> None:
+    """Khôi phục trạng thái bật/tắt thu thập tự động đã lưu trong DB từ lần chạy trước."""
+    job_scheduler.init()
+
+
+@app.on_event("shutdown")
+def _stop_scheduler() -> None:
+    job_scheduler.shutdown()
 
 
 def _normalize_video_id(platform: str, value: str) -> str:
@@ -93,6 +107,19 @@ def list_post_categories(session: Session = Depends(get_session)) -> list[str]:
         select(RawPost.category).where(RawPost.category.is_not(None)).distinct().order_by(RawPost.category)
     ).scalars().all()
     return list(rows)
+
+
+# ===== Bật/tắt job thu thập tự động (scheduler chạy nền trong tiến trình API - xem collector/scheduler.py) =====
+
+
+@app.get("/scheduler", response_model=SchedulerStatusOut)
+def scheduler_status() -> SchedulerStatusOut:
+    return SchedulerStatusOut(**job_scheduler.status())
+
+
+@app.post("/scheduler/toggle", response_model=SchedulerStatusOut)
+def scheduler_toggle(payload: SchedulerToggleIn) -> SchedulerStatusOut:
+    return SchedulerStatusOut(**job_scheduler.set_enabled(payload.enabled))
 
 
 # ===== Cấu hình collector (thay cho sửa .env - scheduler đọc trực tiếp từ DB, có hiệu lực ngay) =====

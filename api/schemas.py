@@ -60,3 +60,13 @@ class TrackedVideoOut(BaseModel):
     label: str | None
     enabled: bool
     created_at: datetime
+
+
+class SchedulerStatusOut(BaseModel):
+    enabled: bool
+    poll_interval_minutes: int
+    next_run_at: datetime | None
+
+
+class SchedulerToggleIn(BaseModel):
+    enabled: bool

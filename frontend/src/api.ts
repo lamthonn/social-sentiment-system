@@ -76,6 +76,12 @@ export interface TrackedVideo {
 
 export type TrackedVideoInput = Omit<TrackedVideo, 'id' | 'created_at'>
 
+export interface SchedulerStatus {
+  enabled: boolean
+  poll_interval_minutes: number
+  next_run_at: string | null
+}
+
 export const api = {
   health: () => request<HealthResponse>('/health'),
   stats: () => request<StatsResponse>('/stats'),
@@ -103,5 +109,11 @@ export const api = {
     update: (id: number, payload: TrackedVideoInput) =>
       request<TrackedVideo>(`/tracked-videos/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
     remove: (id: number) => request<void>(`/tracked-videos/${id}`, { method: 'DELETE' }),
+  },
+
+  scheduler: {
+    status: () => request<SchedulerStatus>('/scheduler'),
+    toggle: (enabled: boolean) =>
+      request<SchedulerStatus>('/scheduler/toggle', { method: 'POST', body: JSON.stringify({ enabled }) }),
   },
 }

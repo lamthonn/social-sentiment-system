@@ -133,25 +133,36 @@ python -m collector search --query "giá vàng" --max-videos 5 --days 7
 ### 5.4. Cấu hình thu thập tự động qua UI
 
 Mở frontend → tab **"Cấu hình thu thập"**:
+- **Thu thập tự động**: nút gạt bật/tắt job chạy nền ngay trong tiến trình API (không
+  cần chạy thêm process/tmux nào khác) — xem mục 5.5.
 - **Từ khóa tìm kiếm** (chỉ YouTube): thêm từ khóa, số video tối đa/lượt, số ngày gần đây, bật/tắt
 - **Video theo dõi cố định** (YouTube hoặc TikTok): dán video ID hoặc URL, theo dõi liên tục
 
-Lưu qua UI ghi thẳng vào DB — **chỉ có tác dụng khi có tiến trình `schedule` đang
-chạy** để đọc và thực thi (xem mục 5.5). Lưu xong mà không chạy scheduler thì
-không có gì được thu thập.
+Lưu qua UI ghi thẳng vào DB — **chỉ có tác dụng khi nút "Thu thập tự động" đang bật**
+(hoặc có tiến trình `schedule` riêng đang chạy, xem cách 2 ở mục 5.5). Lưu xong mà
+chưa bật thu thập tự động thì không có gì được tự động thu thập (vẫn thu thập thủ
+công được qua `python -m collector run/search`, xem mục 5.3).
 
-### 5.5. Chạy định kỳ (scheduler) — BẮT BUỘC để tự động thu thập
+### 5.5. Bật thu thập tự động
 
+**Cách 1 - qua giao diện (khuyến nghị, không cần terminal riêng):** chỉ cần `make api`
+đang chạy (mục 3), vào tab **"Cấu hình thu thập"** → gạt nút **"Thu thập tự động"**.
+Trạng thái bật/tắt được lưu trong DB nên tắt/restart `make api` xong bật lại vẫn nhớ
+đúng trạng thái trước đó. Đọc lại cấu hình từ DB **mỗi lượt chạy** (mặc định mỗi 60
+phút, đổi qua `COLLECTOR_POLL_INTERVAL_MINUTES` trong `.env`, cần restart `make api`
+mới nhận interval mới) — riêng từ khóa/video theo dõi thì sửa qua UI có hiệu lực ngay
+ở lượt kế tiếp, không cần restart gì cả.
+
+**Cách 2 - tiến trình CLI riêng** (dùng khi muốn thu thập độc lập, không chạy API):
 ```bash
 make collect-schedule
 # hoặc: python -m collector schedule
 ```
-Đọc lại cấu hình từ DB **mỗi lượt chạy** (mặc định mỗi 60 phút, đổi qua
-`COLLECTOR_POLL_INTERVAL_MINUTES` trong `.env`) — sửa cấu hình qua UI trong lúc
-scheduler đang chạy có hiệu lực ngay ở lượt kế tiếp, không cần restart.
+⚠️ Không bật đồng thời cả 2 cách trên cùng 1 bộ `.env`/DB — sẽ thu thập trùng lặp,
+lãng phí quota (dữ liệu không sai vì đã chặn trùng theo post ID, chỉ tốn quota vô ích).
 
-**Chạy trực tiếp trong terminal sẽ chết khi đóng terminal/tắt máy.** Muốn chạy
-bền vững, dùng `tmux`:
+**Chạy trực tiếp trong terminal (cách 2) sẽ chết khi đóng terminal/tắt máy.** Muốn
+chạy bền vững, dùng `tmux`:
 ```bash
 sudo apt install -y tmux      # cài 1 lần nếu chưa có
 tmux new -s collector
@@ -229,8 +240,9 @@ vào chính container Adminer chứ không phải Postgres.
 rồi chạy lại) để nhận giá trị mới.
 
 ### 9. Cấu hình từ khóa/video qua UI xong mà "Tổng bài thu thập" không tăng
-Cấu hình qua UI chỉ lưu vào DB — **không tự chạy gì**. Phải có tiến trình
-`python -m collector schedule` đang chạy để đọc và thực thi. Kiểm tra:
+Cấu hình qua UI chỉ lưu vào DB — **không tự chạy gì**. Kiểm tra nút "Thu thập tự động"
+ở tab "Cấu hình thu thập" đã bật chưa (xem mục 5.5). Nếu dùng cách 2 (tiến trình CLI
+riêng), kiểm tra tiến trình còn sống không:
 ```bash
 ps aux | grep collector
 ```

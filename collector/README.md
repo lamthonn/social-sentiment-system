@@ -85,13 +85,24 @@ chọn nền tảng TikTok) - xem mục 5 phần YouTube ở trên, cách làm g
 
 ## Chạy định kỳ (scheduler) - cả 2 nền tảng, mọi mục cấu hình qua UI
 
-```bash
-make collect-schedule
-# hoặc: python -m collector schedule
-```
-Chạy foreground, thu thập ngay lần đầu rồi lặp lại mỗi `COLLECTOR_POLL_INTERVAL_MINUTES`
-phút - **mỗi lượt đọc lại cấu hình từ DB**, nên thêm/sửa/xóa video/từ khóa qua UI trong
-lúc scheduler đang chạy sẽ có tác dụng ở lượt kế tiếp mà không cần restart. Dừng bằng `Ctrl+C`.
+Có 2 cách bật chạy định kỳ - **mỗi lượt đều đọc lại cấu hình từ DB**, nên thêm/sửa/xóa
+video/từ khóa qua UI có tác dụng ngay ở lượt kế tiếp mà không cần restart:
+
+- **Qua UI (khuyến nghị)**: chỉ cần `make api` đang chạy, gạt nút "Thu thập tự động" ở
+  đầu tab "Cấu hình thu thập" - scheduler chạy nền ngay trong tiến trình API, không cần
+  mở thêm terminal (xem `collector/scheduler.py`: `init`/`set_enabled`/`status`, gọi qua
+  `GET/POST /scheduler` trong `api/main.py`). Trạng thái bật/tắt lưu trong DB nên restart
+  `make api` xong vẫn nhớ đúng.
+- **CLI độc lập** (khi không chạy API):
+  ```bash
+  make collect-schedule
+  # hoặc: python -m collector schedule
+  ```
+  Chạy foreground, thu thập ngay lần đầu rồi lặp lại mỗi `COLLECTOR_POLL_INTERVAL_MINUTES`
+  phút. Dừng bằng `Ctrl+C`.
+
+⚠️ Không bật cả 2 cách cùng lúc trên cùng 1 bộ `.env`/DB - sẽ thu thập trùng lặp, lãng
+phí quota (không sai dữ liệu vì đã chặn trùng theo post ID).
 
 ## Ghi chú an toàn dữ liệu
 - Chỉ hash định danh tác giả ổn định (YouTube: `authorChannelId`) - **không lưu

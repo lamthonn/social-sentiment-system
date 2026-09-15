@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   Button,
+  Card,
   Form,
   Input,
   InputNumber,
@@ -17,6 +18,7 @@ import {
 import { PlusOutlined } from '@ant-design/icons'
 import {
   api,
+  type SchedulerStatus,
   type SearchQuery,
   type SearchQueryInput,
   type TrackedVideo,
@@ -27,6 +29,59 @@ const { Title, Text } = Typography
 
 function errorMessage(err: unknown, fallback: string): string {
   return err instanceof Error ? err.message : fallback
+}
+
+function SchedulerPanel() {
+  const [status, setStatus] = useState<SchedulerStatus | null>(null)
+  const [toggling, setToggling] = useState(false)
+
+  const load = () => {
+    api.scheduler
+      .status()
+      .then(setStatus)
+      .catch(() => message.error('Không tải được trạng thái thu thập tự động'))
+  }
+
+  useEffect(() => {
+    load()
+    const timer = setInterval(load, 30_000)
+    return () => clearInterval(timer)
+  }, [])
+
+  const handleToggle = async (enabled: boolean) => {
+    setToggling(true)
+    try {
+      setStatus(await api.scheduler.toggle(enabled))
+      message.success(enabled ? 'Đã bật thu thập tự động' : 'Đã tắt thu thập tự động')
+    } catch (err) {
+      message.error(errorMessage(err, 'Cập nhật thất bại'))
+    } finally {
+      setToggling(false)
+    }
+  }
+
+  return (
+    <Card style={{ marginBottom: 32 }}>
+      <Space align="start" size="middle">
+        <Switch checked={status?.enabled ?? false} loading={toggling || !status} onChange={handleToggle} />
+        <div>
+          <Space>
+            <Text strong>Thu thập tự động</Text>
+            <Tag color={status?.enabled ? 'success' : 'default'}>{status?.enabled ? 'Đang bật' : 'Đang tắt'}</Tag>
+          </Space>
+          {status && (
+            <div>
+              <Text type="secondary">
+                Chu kỳ mỗi {status.poll_interval_minutes} phút
+                {status.enabled && status.next_run_at &&
+                  ` — lượt kế tiếp lúc ${new Date(status.next_run_at).toLocaleString('vi-VN')}`}
+              </Text>
+            </div>
+          )}
+        </div>
+      </Space>
+    </Card>
+  )
 }
 
 function SearchQueriesPanel() {
@@ -308,6 +363,8 @@ function TrackedVideosPanel() {
 export default function CollectorConfig() {
   return (
     <div>
+      <SchedulerPanel />
+
       <Title level={5}>Từ khóa tìm kiếm (YouTube)</Title>
       <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
         Tự động tìm video mới khớp từ khóa mỗi lượt chạy scheduler - chỉ tìm video đăng trong

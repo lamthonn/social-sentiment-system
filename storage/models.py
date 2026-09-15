@@ -69,3 +69,13 @@ class TrackedVideo(Base):
     label: Mapped[str | None] = mapped_column(String(255), nullable=True)  # ghi chú tùy chọn (VD tên video)
     enabled: Mapped[bool] = mapped_column(Boolean, default=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class SchedulerState(Base):
+    """Bật/tắt job thu thập tự động (bảng chỉ có 1 dòng, id=1) - đọc/ghi qua UI, có hiệu lực ngay
+    (không cần restart), và được API tự đọc lại khi khởi động để khôi phục đúng trạng thái trước đó."""
+    __tablename__ = "scheduler_state"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    enabled: Mapped[bool] = mapped_column(Boolean, default=False)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
