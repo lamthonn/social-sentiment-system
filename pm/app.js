@@ -1,646 +1,261 @@
-/* Giao diện quản lý đề tài - JS thuần, đọc/ghi qua pm/server.py */
+/* Quản lý đề tài - đọc/ghi pm/QUAN_LY_DE_TAI.md qua pm/server.py */
 'use strict'
 
-const S = { config: null, user: '', items: [], byId: {}, dirty: false, filters: {} }
-const $ = (sel, root = document) => root.querySelector(sel)
-const $$ = (sel, root = document) => [...root.querySelectorAll(sel)]
-const REF_RE = /\b([A-Z]{1,6}-\d{3,4})\b/g
-const CHECK_RE = /^(\s*[-*] \[)( |x|X)(\] +)(?=\S)/gm
-const MAIN_TABS = [['task', 'Đầu việc'], ['decision', 'Cần chốt'], ['question', 'Khảo sát'], ['doc', 'Tài liệu']]
-const CLOSED = ['done', 'dropped', 'decided', 'cancelled', 'answered', 'skipped', 'selected', 'rejected', 'closed', 'stable', 'final', 'wontfix', 'out', 'failed']
-
-// ===== tiện ích =====
+let doc = null // { overview, tasks, models, warnings, rev, options }
+let taskFilter = ''
+const $ = (s, r = document) => r.querySelector(s)
+const $$ = (s, r = document) => [...r.querySelectorAll(s)]
 const esc = (s) => String(s ?? '').replace(/[&<>"']/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]))
-const asList = (v) => (Array.isArray(v) ? v : v ? String(v).split(',').map((x) => x.trim()).filter(Boolean) : [])
-const typeOf = (key) => S.config.types[key]
-const isClosed = (status) => CLOSED.includes(status)
-function statusInfo(typeKey, status) {
-  const t = typeOf(typeKey)
-  return (t && t.statuses.find((s) => s.key === status)) || { key: status, label: status || '—', color: 'gray' }
-}
-const statusText = (typeKey, status) => {
-  const s = statusInfo(typeKey, status)
-  return `<span class="status ${s.color}">${esc(s.label)}</span>`
-}
-function toast(msg, isError = false) {
-  const el = $('#toast')
-  el.textContent = msg
-  el.className = 'toast' + (isError ? ' error' : '')
-  clearTimeout(toast.t)
-  toast.t = setTimeout(() => el.classList.add('hidden'), isError ? 6000 : 2200)
-}
-async function api(path, opts = {}) {
-  const init = { method: opts.method || 'GET', headers: {} }
-  if (opts.body !== undefined) {
-    if (opts.raw) {
-      init.body = opts.body
-      init.headers['Content-Type'] = opts.contentType || 'application/octet-stream'
-      if (opts.filename) init.headers['X-Filename'] = encodeURIComponent(opts.filename)
-    } else {
-      init.body = JSON.stringify(opts.body)
-      init.headers['Content-Type'] = 'application/json'
-    }
-  }
-  const res = await fetch(path, init)
-  const data = await res.json().catch(() => ({}))
-  if (!res.ok) {
-    const err = new Error(data.error || `Lỗi ${res.status}`)
-    err.status = res.status
-    err.data = data
-    throw err
-  }
-  return data
-}
+const TASK_COLOR = { 'Chưa làm': 'gray', 'Đang làm': 'blue', 'Xong': 'green', 'Tạm dừng': 'amber' }
+const MODEL_COLOR = { 'Ứng viên': 'gray', 'Đang thử': 'blue', 'Đã chọn': 'green', 'Loại': 'red' }
+const TASK_ORDER = ['Đang làm', 'Chưa làm', 'Tạm dừng', 'Xong']
 
-// ===== markdown =====
-function renderMd(src) {
+function toast(msg, err = false) {
+  const t = $('#toast')
+  t.textContent = msg
+  t.className = 'toast' + (err ? ' error' : '')
+  clearTimeout(toast.h)
+  toast.h = setTimeout(() => t.classList.add('hidden'), err ? 5000 : 1800)
+}
+function md(src) {
   if (!src || !src.trim()) return '<p class="muted">Chưa có nội dung.</p>'
-  let html = window.marked ? marked.parse(src, { gfm: true, breaks: true }) : `<pre>${esc(src)}</pre>`
-  html = html.replace(/(src|href)="\.\.\/assets\//g, '$1="/assets/')
-  if (window.DOMPurify) html = DOMPurify.sanitize(html)
-  const wrap = document.createElement('div')
-  wrap.className = 'md'
-  wrap.innerHTML = html
-  $$('pre > code.language-mermaid', wrap).forEach((code) => {
-    const div = document.createElement('div')
-    div.className = 'mermaid'
-    div.textContent = code.textContent
-    code.parentElement.replaceWith(div)
-  })
-  linkRefs(wrap)
-  return wrap.outerHTML
+  const html = window.marked ? marked.parse(src, { gfm: true, breaks: true }) : `<pre>${esc(src)}</pre>`
+  return `<div class="md">${window.DOMPurify ? DOMPurify.sanitize(html) : html}</div>`
 }
-function linkRefs(root) {
-  const walker = document.createTreeWalker(root, NodeFilter.SHOW_TEXT)
-  const nodes = []
-  while (walker.nextNode()) {
-    const n = walker.currentNode
-    if (n.parentElement.closest('a, code, pre, .mermaid')) continue
-    REF_RE.lastIndex = 0
-    if (REF_RE.test(n.nodeValue)) nodes.push(n)
-  }
-  nodes.forEach((n) => {
-    const span = document.createElement('span')
-    span.innerHTML = esc(n.nodeValue).replace(REF_RE, (m, id) =>
-      S.byId[id] ? `<a class="ref" href="#/item/${id}" title="${esc(S.byId[id].meta.title)}">${id}</a>` : m,
-    )
-    n.replaceWith(...span.childNodes)
-  })
-}
-function afterRender(root) {
-  if (window.mermaid) {
-    const nodes = $$('.mermaid:not([data-processed])', root)
-    if (nodes.length) mermaid.run({ nodes }).catch((e) => console.warn('mermaid', e))
-  }
-  $$('.md img', root).forEach((img) => (img.onclick = () => openModal(`<img src="${esc(img.getAttribute('src'))}" alt="">`, true)))
-}
-
-// ===== modal =====
-function openModal(html, wide = false) {
-  $('#modalBox').className = 'modal-box' + (wide ? ' wide' : '')
+function openModal(html) {
   $('#modalBox').innerHTML = html
   $('#modal').classList.remove('hidden')
-  $('#modalBox input, #modalBox select, #modalBox textarea')?.focus()
+  $('#modalBox input, #modalBox textarea')?.focus()
 }
 function closeModal() {
   $('#modal').classList.add('hidden')
-  $('#modalBox').innerHTML = ''
 }
-$('#modal').addEventListener('click', (e) => e.target.id === 'modal' && closeModal())
-document.addEventListener('keydown', (e) => {
-  if (e.key === 'Escape') {
-    closeModal()
-    closeMenu()
-  }
-})
+$('#modal').onclick = (e) => e.target.id === 'modal' && closeModal()
+document.addEventListener('keydown', (e) => e.key === 'Escape' && closeModal())
 
-// ===== dữ liệu =====
-async function loadItems() {
-  S.items = await api('/api/items')
-  S.byId = {}
-  S.items.forEach((i) => (S.byId[i.meta.id] = i))
+// ===== API =====
+async function api(path, opts = {}) {
+  const res = await fetch(path, opts)
+  const data = await res.json().catch(() => ({}))
+  if (!res.ok) throw Object.assign(new Error(data.error || `Lỗi ${res.status}`), { status: res.status, data })
+  return data
 }
-const itemsOf = (typeKey) =>
-  S.items.filter((i) => i.meta.type === typeKey).sort((a, b) => a.meta.id.localeCompare(b.meta.id, 'en', { numeric: true }))
-function upsertSummary(full) {
-  const last = full.comments[full.comments.length - 1]
-  const summary = {
-    meta: full.meta,
-    checklist: full.checklist,
-    comment_count: full.comments.length,
-    last_comment: last ? { time: last.time, author: last.author } : null,
-    recent_comments: full.comments.slice(-3).map((c) => ({ time: c.time, author: c.author, text: c.text.slice(0, 160) })),
-    excerpt: full.content.slice(0, 400),
-    warnings: full.warnings,
-    file: full.file,
+async function save(msg = 'Đã lưu') {
+  try {
+    doc = await api('/api/doc', {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ overview: doc.overview, tasks: doc.tasks, models: doc.models, rev: doc.rev }),
+    })
+    toast(msg)
+  } catch (e) {
+    if (e.status === 409 && e.data.current) {
+      doc = e.data.current
+      toast(e.message, true)
+    } else toast(e.message, true)
   }
-  const idx = S.items.findIndex((i) => i.meta.id === full.meta.id)
-  if (idx >= 0) S.items[idx] = summary
-  else S.items.push(summary)
-  S.byId[full.meta.id] = summary
+  render()
 }
 
-// ===== dán ảnh / kéo thả file =====
-function insertAtCursor(ta, text) {
-  const { selectionStart: a, selectionEnd: b } = ta
-  ta.value = ta.value.slice(0, a) + text + ta.value.slice(b)
-  ta.selectionStart = ta.selectionEnd = a + text.length
-  ta.dispatchEvent(new Event('input'))
-}
-function attachUpload(ta, zone = ta) {
-  const handle = async (files) => {
-    for (const file of files) {
-      const token = `![Đang tải ${file.name || 'ảnh'}…]()`
-      insertAtCursor(ta, token)
+// Dán ảnh (Ctrl+V) / kéo thả file vào ô soạn thảo -> lưu vào pm/assets
+function attachUpload(ta) {
+  const upload = async (files) => {
+    for (const f of files) {
       try {
-        const res = await api('/api/upload', { method: 'POST', body: file, raw: true, contentType: file.type, filename: file.name || 'anh.png' })
-        const name = (file.name || 'ảnh').replace(/[[\]]/g, '')
-        ta.value = ta.value.replace(token, res.is_image ? `![${name}](${res.path})` : `[${name}](${res.path})`)
-      } catch (e) {
-        ta.value = ta.value.replace(token, '')
-        toast('Tải file lỗi: ' + e.message, true)
-      }
-      ta.dispatchEvent(new Event('input'))
+        const r = await api('/api/upload', { method: 'POST', headers: { 'Content-Type': f.type || 'application/octet-stream', 'X-Filename': encodeURIComponent(f.name || '') }, body: f })
+        const text = r.is_image ? `![](${r.path})` : `[${f.name}](${r.path})`
+        const p = ta.selectionStart
+        ta.value = ta.value.slice(0, p) + text + ta.value.slice(ta.selectionEnd)
+        ta.selectionStart = ta.selectionEnd = p + text.length
+      } catch (e) { toast('Tải file lỗi: ' + e.message, true) }
     }
   }
   ta.addEventListener('paste', (e) => {
-    const files = [...(e.clipboardData?.items || [])].filter((it) => it.kind === 'file').map((it) => it.getAsFile()).filter(Boolean)
-    if (files.length) {
-      e.preventDefault()
-      handle(files)
-    }
+    const files = [...(e.clipboardData?.items || [])].filter((i) => i.kind === 'file').map((i) => i.getAsFile())
+    if (files.length) { e.preventDefault(); upload(files) }
   })
-  zone.addEventListener('dragover', (e) => {
-    if ([...e.dataTransfer.types].includes('Files')) {
-      e.preventDefault()
-      zone.classList.add('dragover')
-    }
-  })
-  zone.addEventListener('dragleave', () => zone.classList.remove('dragover'))
-  zone.addEventListener('drop', (e) => {
-    if (!e.dataTransfer.files.length) return
-    e.preventDefault()
-    zone.classList.remove('dragover')
-    handle([...e.dataTransfer.files])
+  ta.addEventListener('dragover', (e) => e.preventDefault())
+  ta.addEventListener('drop', (e) => {
+    if (e.dataTransfer.files.length) { e.preventDefault(); upload([...e.dataTransfer.files]) }
   })
 }
 
-// ===== thanh tab =====
-function currentTab() {
-  const [page, arg] = location.hash.replace(/^#\/?/, '').split('/')
-  if (!page) return 'home'
-  if (page === 'list') return arg
-  if (page === 'item') return S.byId[arg]?.meta.type
-  return page
-}
-function renderTabs() {
-  const cur = currentTab()
-  const otherKeys = Object.keys(S.config.types).filter((k) => !MAIN_TABS.some(([m]) => m === k))
-  const otherActive = otherKeys.includes(cur) || cur === 'trace'
-  $('#tabs').innerHTML =
-    `<a href="#/" class="${cur === 'home' ? 'active' : ''}">Tổng quan</a>` +
-    MAIN_TABS.map(([k, label]) => `<a href="#/list/${k}" class="${cur === k ? 'active' : ''}">${label}</a>`).join('') +
-    `<a href="#" id="moreBtn" class="${otherActive ? 'active' : ''}">${otherActive && cur !== 'trace' ? esc(typeOf(cur).label) : cur === 'trace' ? 'Truy vết' : 'Khác'} ▾</a>`
-  $('#moreBtn').onclick = (e) => {
-    e.preventDefault()
-    if ($('.menu')) return closeMenu()
-    const r = e.target.getBoundingClientRect()
-    const menu = document.createElement('div')
-    menu.className = 'menu'
-    menu.style.top = `${r.bottom + window.scrollY + 4}px`
-    menu.style.left = `${Math.min(r.left, window.innerWidth - 220)}px`
-    menu.innerHTML =
-      otherKeys.map((k) => `<a href="#/list/${k}">${esc(typeOf(k).label)} <span class="muted small">${itemsOf(k).length}</span></a>`).join('') +
-      '<a href="#/trace">Truy vết câu hỏi nghiên cứu</a>'
-    document.body.appendChild(menu)
-    menu.onclick = closeMenu
-    setTimeout(() => document.addEventListener('click', closeMenu, { once: true }))
-  }
-}
-function closeMenu() {
-  $('.menu')?.remove()
-}
-
-// ===== router =====
-async function route() {
-  if (S.dirty && !confirm('Bạn có thay đổi chưa lưu. Rời trang?')) {
-    history.replaceState(null, '', S.lastHash)
-    return
-  }
-  S.dirty = false
-  S.lastHash = location.hash
-  closeMenu()
-  const [page, ...rest] = location.hash.replace(/^#\/?/, '').split('/').map(decodeURIComponent)
+// ===== điều hướng =====
+const tab = () => (['overview', 'tasks', 'models'].includes(location.hash.slice(1)) ? location.hash.slice(1) : 'overview')
+window.addEventListener('hashchange', render)
+function render() {
+  $$('.tabs a').forEach((a) => a.classList.toggle('active', a.dataset.tab === tab()))
   const main = $('#main')
-  window.scrollTo(0, 0)
-  try {
-    if (page === 'item') await renderItem(main, rest[0])
-    else if (page === 'list') renderList(main, rest[0])
-    else if (page === 'trace') renderTrace(main)
-    else if (page === 'search') renderSearch(main, rest.join('/'))
-    else renderHome(main)
-  } catch (e) {
-    main.innerHTML = `<div class="warn">Lỗi: ${esc(e.message)}</div>`
-  }
-  renderTabs()
-}
-window.addEventListener('hashchange', route)
-window.addEventListener('beforeunload', (e) => {
-  if (S.dirty) {
-    e.preventDefault()
-    e.returnValue = ''
-  }
-})
-$('#searchForm').onsubmit = (e) => {
-  e.preventDefault()
-  const q = $('#searchInput').value.trim()
-  if (q) location.hash = '#/search/' + encodeURIComponent(q)
+  const warn = doc.warnings.length ? `<div class="warn">${doc.warnings.map(esc).join('<br>')}</div>` : ''
+  main.innerHTML = warn + '<div id="view"></div>'
+  ;({ overview: renderOverview, tasks: renderTasks, models: renderModels })[tab()]($('#view'))
 }
 
-// ===== tổng quan =====
-function simpleList(list, empty) {
-  if (!list.length) return `<p class="muted">${empty}</p>`
-  return `<ul class="simple">${list
-    .map((i) => `<li><span class="code">${i.meta.id}</span><a href="#/item/${i.meta.id}">${esc(i.meta.title)}</a></li>`)
-    .join('')}</ul>`
+// ===== 1. Tổng quan =====
+function renderOverview(view) {
+  view.innerHTML = `
+    <div class="toc">${doc.overview.map((s, i) => `<a href="#overview" data-go="${i}">${esc(s.title)}</a>`).join('')}</div>
+    ${doc.overview.map((s, i) => `<div class="card" id="ov-${i}">
+      <div class="card-head"><h2>${esc(s.title)}</h2><button class="link right" data-edit="${i}">Sửa</button></div>
+      ${md(s.body)}</div>`).join('')}
+    <button class="btn" id="addSec">+ Thêm mục</button>`
+  $$('[data-go]', view).forEach((a) => (a.onclick = (e) => { e.preventDefault(); $(`#ov-${a.dataset.go}`).scrollIntoView({ behavior: 'smooth' }) }))
+  $$('[data-edit]', view).forEach((b) => (b.onclick = () => editSection(+b.dataset.edit)))
+  $('#addSec').onclick = () => {
+    doc.overview.push({ title: 'Mục mới', body: '' })
+    editSection(doc.overview.length - 1, true)
+  }
 }
-function renderHome(main) {
-  const tasks = itemsOf('task').filter((i) => i.meta.status !== 'dropped')
-  const done = tasks.filter((i) => i.meta.status === 'done').length
-  const decisions = itemsOf('decision')
-  const openDec = decisions.filter((i) => !isClosed(i.meta.status))
-  const qs = itemsOf('question')
-  const answered = qs.filter((i) => isClosed(i.meta.status)).length
-  const mine = itemsOf('task').filter((i) => i.meta.owner === S.user && !isClosed(i.meta.status))
-  const doing = mine.filter((i) => i.meta.status === 'doing').concat(mine.filter((i) => i.meta.status !== 'doing'))
-  const recent = []
-  S.items.forEach((i) => (i.recent_comments || []).forEach((c) => recent.push({ ...c, id: i.meta.id, title: i.meta.title })))
-  recent.sort((a, b) => b.time.localeCompare(a.time))
-  const warnings = S.items.filter((i) => i.warnings?.length)
-  const pct = (a, b) => (b ? Math.round((100 * a) / b) : 0)
+function editSection(i, isNew = false) {
+  const s = doc.overview[i]
+  const card = $(`#ov-${i}`) || $('#view').appendChild(Object.assign(document.createElement('div'), { className: 'card', id: `ov-${i}` }))
+  card.innerHTML = `<input id="secTitle" value="${esc(s.title)}" style="width:100%;font-weight:600;margin-bottom:10px">
+    <textarea id="secBody" style="min-height:280px">${esc(s.body)}</textarea>
+    <div class="actions"><button class="btn danger left" id="secDel">Xóa mục</button><span class="muted small">Markdown · dán ảnh bằng Ctrl+V</span>
+      <button class="btn" id="secCancel">Hủy</button><button class="btn primary" id="secSave">Lưu</button></div>`
+  attachUpload($('#secBody'))
+  card.scrollIntoView({ block: 'start' })
+  $('#secCancel').onclick = () => { if (isNew) doc.overview.pop(); render() }
+  $('#secSave').onclick = () => { s.title = $('#secTitle').value.trim() || 'Không tên'; s.body = $('#secBody').value; save() }
+  $('#secDel').onclick = () => { if (confirm(`Xóa mục "${s.title}"?`)) { doc.overview.splice(i, 1); save('Đã xóa') } }
+}
 
-  main.innerHTML = `
-    ${warnings.length ? `<div class="warn">Có ${warnings.length} mục bị sửa trùng cùng lúc, cần xem lại: ${warnings.map((i) => `<a href="#/item/${i.meta.id}">${i.meta.id}</a>`).join(', ')}</div>` : ''}
-    <div class="stats">
-      <a class="stat" href="#/list/task"><div class="num">${done}<span class="muted" style="font-size:18px"> / ${tasks.length}</span></div><div class="label">Đầu việc đã xong</div><div class="bar"><span style="width:${pct(done, tasks.length)}%"></span></div></a>
-      <a class="stat" href="#/list/decision"><div class="num">${openDec.length}</div><div class="label">Việc cần chốt còn mở (trên ${decisions.length})</div><div class="bar"><span style="width:${pct(decisions.length - openDec.length, decisions.length)}%"></span></div></a>
-      <a class="stat" href="#/list/question"><div class="num">${answered}<span class="muted" style="font-size:18px"> / ${qs.length}</span></div><div class="label">Câu hỏi khảo sát đã trả lời</div><div class="bar"><span style="width:${pct(answered, qs.length)}%"></span></div></a>
+// ===== 2. Việc cần làm =====
+function renderTasks(view) {
+  const { members, task_statuses: statuses } = doc.options
+  const count = (s) => doc.tasks.filter((t) => t.status === s).length
+  const list = doc.tasks
+    .filter((t) => !taskFilter || t.status === taskFilter)
+    .sort((a, b) => TASK_ORDER.indexOf(a.status) - TASK_ORDER.indexOf(b.status))
+  view.innerHTML = `
+    <div class="card add-box"><div class="row">
+      <input id="newTitle" class="grow" placeholder="Thêm việc mới…">
+      <select id="newOwner"><option value="">Người làm</option>${members.map((m) => `<option>${esc(m)}</option>`).join('')}</select>
+      <button class="btn primary" id="addTask">Thêm</button>
+    </div></div>
+    <div class="chips">
+      <button data-f="" class="${taskFilter ? '' : 'on'}">Tất cả ${doc.tasks.length}</button>
+      ${statuses.map((s) => `<button data-f="${esc(s)}" class="s-${TASK_COLOR[s] || 'gray'} ${taskFilter === s ? 'on' : ''}"><i></i>${esc(s)} ${count(s)}</button>`).join('')}
     </div>
-    <div class="cols">
-      <div>
-        <div class="box"><h2>Việc của ${esc(S.user || 'tôi')}</h2>${simpleList(doing.slice(0, 8), S.user ? 'Không có việc đang mở.' : 'Chọn tên ở góc phải để xem việc của bạn.')}
-          ${doing.length > 8 ? `<p class="small"><a href="#/list/task">Xem tất cả ${doing.length} việc →</a></p>` : ''}</div>
-        <div class="box"><h2>Cần chốt</h2>${simpleList(openDec.slice(0, 8), 'Đã chốt hết.')}
-          ${openDec.length > 8 ? `<p class="small"><a href="#/list/decision">Xem tất cả →</a></p>` : ''}</div>
-      </div>
-      <div class="box"><h2>Thảo luận gần đây</h2>
-        ${recent.length ? recent.slice(0, 8).map((c) => `
-          <div class="comment"><div class="comment-head"><b>${esc(c.author)}</b><span class="muted small">${esc(c.time.slice(0, 16))}</span></div>
-          <a href="#/item/${c.id}">${esc(c.title)}</a>
-          <div class="muted small">${esc(c.text.replace(/!\[[^\]]*\]\([^)]*\)/g, '[ảnh]').slice(0, 120))}</div></div>`).join('') : '<p class="muted">Chưa có thảo luận.</p>'}
-      </div>
+    <div class="task-grid">${list.map((t) => `
+      <div class="task s-${TASK_COLOR[t.status] || 'gray'}">
+        <div class="t-title" data-open="${esc(t.id)}">${esc(t.title)}</div>
+        ${t.note ? `<div class="t-note">${esc(t.note)}</div>` : ''}
+        <div class="t-foot"><span>${esc(t.id)}</span>${t.owner ? `<span>· ${esc(t.owner)}</span>` : ''}
+          <select data-status="${esc(t.id)}">${statuses.map((s) => `<option ${s === t.status ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select></div>
+      </div>`).join('') || '<p class="muted">Không có việc nào.</p>'}
     </div>`
+  const add = () => {
+    const title = $('#newTitle').value.trim()
+    if (!title) return
+    doc.tasks.push({ id: '', title, status: statuses[0], owner: $('#newOwner').value, note: '' })
+    save('Đã thêm việc')
+  }
+  $('#addTask').onclick = add
+  $('#newTitle').onkeydown = (e) => e.key === 'Enter' && add()
+  $$('.chips button', view).forEach((b) => (b.onclick = () => { taskFilter = b.dataset.f; render() }))
+  $$('[data-status]', view).forEach((sel) => (sel.onchange = () => {
+    doc.tasks.find((t) => t.id === sel.dataset.status).status = sel.value
+    save(`Đã chuyển sang "${sel.value}"`)
+  }))
+  $$('[data-open]', view).forEach((el) => (el.onclick = () => editTask(doc.tasks.find((t) => t.id === el.dataset.open))))
 }
-
-// ===== danh sách =====
-function renderList(main, typeKey) {
-  const t = typeOf(typeKey)
-  if (!t) return (main.innerHTML = '<p>Không có loại mục này.</p>')
-  const f = S.filters[typeKey] || (S.filters[typeKey] = { q: '', status: '', owner: '' })
-  const hasOwner = t.fields.some((x) => x.key === 'owner')
-  const all = itemsOf(typeKey)
-  const scoreKeys = t.fields.filter((x) => x.kind === 'score').map((x) => x.key)
-  const extra = typeKey === 'model' ? ['Kết quả', (i) => esc(i.meta.metric || '')]
-    : typeKey === 'app' ? ['Điểm', (i) => scoreKeys.reduce((s, k) => s + (+i.meta[k] || 0), 0) || '']
-    : ['task', 'fr', 'risk'].includes(typeKey) ? ['Checklist', (i) => (i.checklist.total ? `${i.checklist.done}/${i.checklist.total}` : '')]
-    : null
-
-  main.innerHTML = `
-    <div class="page-head"><h1>${esc(t.label)}</h1><div class="right"><button class="btn primary" id="newBtn">+ Thêm</button></div></div>
-    <div class="seg" id="seg"></div>
-    <div class="filters">
-      <input type="search" id="fq" placeholder="Lọc theo tên hoặc mã…" value="${esc(f.q)}">
-      ${hasOwner ? `<select id="fowner"><option value="">Mọi người</option>${S.config.members.map((m) => `<option ${f.owner === m ? 'selected' : ''}>${esc(m)}</option>`).join('')}<option value="-" ${f.owner === '-' ? 'selected' : ''}>Chưa giao</option></select>` : ''}
-    </div>
-    <div id="rows"></div>`
-  $('#newBtn').onclick = () => newItemDialog(typeKey)
-  $('#fq').oninput = (e) => { f.q = e.target.value; draw() }
-  if (hasOwner) $('#fowner').onchange = (e) => { f.owner = e.target.value; draw() }
-
-  function draw() {
-    const q = f.q.toLowerCase()
-    const base = all.filter((i) => {
-      if (q && !`${i.meta.id} ${i.meta.title}`.toLowerCase().includes(q)) return false
-      if (f.owner === '-' ? i.meta.owner : f.owner && i.meta.owner !== f.owner) return false
-      return true
-    })
-    $('#seg').innerHTML = [['', 'Tất cả', base.length], ...t.statuses.map((s) => [s.key, s.label, base.filter((i) => i.meta.status === s.key).length])]
-      .map(([k, label, n]) => `<button data-s="${k}" class="${f.status === k ? 'on' : ''}">${esc(label)} <span class="muted">${n}</span></button>`).join('')
-    $$('#seg button').forEach((b) => (b.onclick = () => { f.status = b.dataset.s; draw() }))
-    let list = f.status ? base.filter((i) => i.meta.status === f.status) : base
-    if (typeKey === 'app') list = [...list].sort((a, b) => extra[1](b) - extra[1](a))
-    $('#rows').innerHTML = list.length ? `<table class="list"><thead><tr>
-        <th>Mã</th><th>Tiêu đề</th><th>Trạng thái</th>${hasOwner ? '<th class="hide-sm">Phụ trách</th>' : ''}${extra ? `<th class="hide-sm">${extra[0]}</th>` : ''}<th class="hide-sm" title="Số bình luận">Thảo luận</th>
-      </tr></thead><tbody>${list.map((i) => `<tr data-id="${i.meta.id}">
-        <td class="code">${i.meta.id}</td>
-        <td class="title">${esc(i.meta.title)}${i.warnings?.length ? ' <span title="Cần xem lại">⚠️</span>' : ''}</td>
-        <td>${statusText(typeKey, i.meta.status)}</td>
-        ${hasOwner ? `<td class="hide-sm">${esc(i.meta.owner || '')}</td>` : ''}
-        ${extra ? `<td class="hide-sm">${extra[1](i)}</td>` : ''}
-        <td class="hide-sm muted">${i.comment_count || ''}</td></tr>`).join('')}</tbody></table>`
-      : '<p class="muted">Không có mục nào.</p>'
-    $$('#rows tbody tr').forEach((tr) => (tr.onclick = () => (location.hash = '#/item/' + tr.dataset.id)))
-  }
-  draw()
-}
-
-function newItemDialog(typeKey) {
-  const t = typeOf(typeKey)
-  const hasOwner = t.fields.some((x) => x.key === 'owner')
-  openModal(`<h2>Thêm ${esc(t.label.toLowerCase())}</h2>
-    <div class="field"><label>Tiêu đề</label><input id="nTitle"></div>
-    ${hasOwner ? `<div class="field"><label>Phụ trách</label><select id="nOwner"><option value=""></option>${S.config.members.map((m) => `<option ${m === S.user ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select></div>` : ''}
-    <div class="actions-row"><button class="btn" id="nCancel">Hủy</button><button class="btn primary" id="nOk">Tạo</button></div>`)
-  $('#nCancel').onclick = closeModal
-  const submit = async () => {
-    const title = $('#nTitle').value.trim()
-    if (!title) return toast('Nhập tiêu đề', true)
-    const meta = $('#nOwner')?.value ? { owner: $('#nOwner').value } : {}
-    try {
-      const full = await api('/api/items', { method: 'POST', body: { type: typeKey, title, meta } })
-      upsertSummary(full)
-      closeModal()
-      location.hash = '#/item/' + full.meta.id
-    } catch (e) { toast(e.message, true) }
-  }
-  $('#nOk').onclick = submit
-  $('#nTitle').onkeydown = (e) => e.key === 'Enter' && submit()
-}
-
-// ===== chi tiết =====
-const MAIN_FIELDS = ['owner', 'priority']
-function fieldInput(f, v) {
-  const opts = (list) => '<option value=""></option>' + list.map((o) => `<option ${String(o) === String(v ?? '') ? 'selected' : ''}>${esc(o)}</option>`).join('')
-  switch (f.kind) {
-    case 'member': return `<select data-k="${f.key}">${opts(S.config.members)}</select>`
-    case 'priority': return `<select data-k="${f.key}">${opts(S.config.priorities)}</select>`
-    case 'module': return `<select data-k="${f.key}">${opts(S.config.modules)}</select>`
-    case 'select': return `<select data-k="${f.key}">${opts(f.options)}</select>`
-    case 'score': return `<select data-k="${f.key}">${opts([1, 2, 3, 4, 5])}</select>`
-    case 'ch': return `<div class="checks" data-k="${f.key}" data-kind="checks">${S.config.research_questions.map((q) => `<label title="${esc(q.label)}"><input type="checkbox" value="${q.key}" ${asList(v).includes(q.key) ? 'checked' : ''}>${q.key}</label>`).join('')}</div>`
-    case 'links':
-    case 'list': return `<input data-k="${f.key}" data-kind="list" value="${esc(asList(v).join(', '))}" placeholder="${f.kind === 'links' ? 'VD: D-001, T-012' : 'cách nhau bằng dấu phẩy'}">`
-    default: return `<input data-k="${f.key}" value="${esc(v || '')}">`
-  }
-}
-
-async function renderItem(main, id) {
-  let item = await api(`/api/items/${id}`)
-  upsertSummary(item)
-  const t = typeOf(item.meta.type) || { label: item.meta.type, statuses: [], fields: [] }
-  const mainFields = t.fields.filter((f) => MAIN_FIELDS.includes(f.key))
-  const moreFields = t.fields.filter((f) => !MAIN_FIELDS.includes(f.key))
-  const backlinks = S.items.filter((i) => i.meta.id !== id && (asList(i.meta.links).includes(id) || (i.excerpt || '').includes(id)))
-  const links = asList(item.meta.links).filter((x) => S.byId[x])
-
-  main.innerHTML = `
-    <a class="back" href="#/list/${item.meta.type}">← ${esc(t.label)}</a>
-    ${item.warnings.length ? `<div class="warn" style="margin-top:12px">${item.warnings.map(esc).join('<br>')}. Chọn lại giá trị đúng rồi lưu là hết cảnh báo.</div>` : ''}
-    <input class="title-input" id="titleInput" value="${esc(item.meta.title)}" title="Bấm để sửa tiêu đề">
-    <div class="meta-row">
-      <span class="code">${esc(id)}</span>
-      <label>Trạng thái <select data-k="status">${t.statuses.map((s) => `<option value="${s.key}" ${s.key === item.meta.status ? 'selected' : ''}>${esc(s.label)}</option>`).join('')}</select></label>
-      ${mainFields.map((f) => `<label>${esc(f.label)} ${fieldInput(f, item.meta[f.key])}</label>`).join('')}
-    </div>
-    ${moreFields.length ? `<details class="more"><summary>Thông tin thêm</summary>
-      <div class="fields">${moreFields.map((f) => `<div><label>${esc(f.label)}</label>${fieldInput(f, item.meta[f.key])}</div>`).join('')}</div>
-      ${links.length ? `<p class="small">Liên kết: ${links.map((x) => `<a class="ref" href="#/item/${x}" title="${esc(S.byId[x].meta.title)}">${x}</a>`).join(' ')}</p>` : ''}
-    </details>` : ''}
-    <div class="box">
-      <div class="box-head"><h2>Nội dung</h2><div class="right"><button class="btn" id="editBtn">Sửa</button></div></div>
-      <div id="contentView"></div>
-    </div>
-    <div class="box">
-      <h2 id="commentsTitle"></h2>
-      <div id="comments"></div>
-      <div class="composer" id="composer">
-        <textarea id="cText" placeholder="Viết ý kiến… (dán ảnh bằng Ctrl+V, Ctrl+Enter để gửi)"></textarea>
-        <div class="actions-row"><span class="hint">Gửi với tên ${esc(S.user || '?')}</span><button class="btn primary" id="cSend">Gửi</button></div>
-      </div>
-    </div>
-    ${backlinks.length ? `<div class="box"><h2>Được nhắc tới ở</h2>${simpleList(backlinks, '')}</div>` : ''}
-    <p class="small" style="text-align:right"><span class="muted">pm/${esc(item.file)}</span> · <a href="#" id="delBtn" style="color:var(--red)">Xóa mục này</a></p>`
-
-  const setItem = (full) => { item = full; upsertSummary(full) }
-  const save = async (patch) => {
-    try { setItem(await api(`/api/items/${id}`, { method: 'PUT', body: { ...patch, rev: item.rev } })); toast('Đã lưu') } catch (err) { onSaveError(err) }
-  }
-
-  // tiêu đề & trường
-  $('#titleInput').onchange = (e) => e.target.value.trim() && save({ meta: { title: e.target.value.trim() } })
-  $$('[data-k]', main).forEach((el) => {
-    const k = el.dataset.k
-    el.onchange = () => save({ meta: { [k]: el.dataset.kind === 'checks' ? $$('input:checked', el).map((c) => c.value) : el.dataset.kind === 'list' ? asList(el.value) : el.value.trim() } })
-  })
-
-  // nội dung
-  function drawContent() {
-    $('#contentView').innerHTML = renderMd(item.content)
-    afterRender($('#contentView'))
-    const boxes = $$('#contentView input[type=checkbox]')
-    if (boxes.length !== (item.content.match(CHECK_RE) || []).length) return
-    boxes.forEach((cb, idx) => {
-      cb.disabled = false
-      cb.onclick = async (e) => {
-        e.preventDefault()
-        let n = -1
-        const content = item.content.replace(CHECK_RE, (m, a, v, b) => (++n === idx ? a + (v === ' ' ? 'x' : ' ') + b : m))
-        try { setItem(await api(`/api/items/${id}`, { method: 'PUT', body: { content, rev: item.rev } })); drawContent() } catch (err) { onSaveError(err) }
-      }
-    })
-  }
-  drawContent()
-  $('#editBtn').onclick = () => {
-    const view = $('#contentView')
-    view.innerHTML = `<div class="ed-tabs"><button class="on" data-m="edit">Soạn</button><button data-m="prev">Xem trước</button></div>
-      <textarea id="contentTa" style="min-height:360px"></textarea><div id="contentPrev" class="hidden"></div>
-      <div class="actions-row"><span class="hint">Dán ảnh bằng Ctrl+V · Ctrl+S để lưu</span><button class="btn" id="cancelEdit">Hủy</button><button class="btn primary" id="saveEdit">Lưu</button></div>`
-    const ta = $('#contentTa')
-    ta.value = item.content
-    ta.oninput = () => (S.dirty = true)
-    attachUpload(ta)
-    $$('.ed-tabs button', view).forEach((b) => (b.onclick = () => {
-      $$('.ed-tabs button', view).forEach((x) => x.classList.toggle('on', x === b))
-      const prev = b.dataset.m === 'prev'
-      ta.classList.toggle('hidden', prev)
-      $('#contentPrev').classList.toggle('hidden', !prev)
-      if (prev) { $('#contentPrev').innerHTML = renderMd(ta.value); afterRender($('#contentPrev')) }
-    }))
-    $('#editBtn').classList.add('hidden')
-    const close = () => { S.dirty = false; $('#editBtn').classList.remove('hidden'); drawContent() }
-    $('#cancelEdit').onclick = () => (!S.dirty || confirm('Bỏ các thay đổi?')) && close()
-    const doSave = async () => {
-      try { setItem(await api(`/api/items/${id}`, { method: 'PUT', body: { content: ta.value, rev: item.rev } })); toast('Đã lưu'); close() } catch (err) { onSaveError(err) }
-    }
-    $('#saveEdit').onclick = doSave
-    ta.onkeydown = (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 's') { e.preventDefault(); doSave() } }
-    ta.focus()
-  }
-
-  // thảo luận
-  function drawComments() {
-    $('#commentsTitle').textContent = item.comments.length ? `Thảo luận (${item.comments.length})` : 'Thảo luận'
-    $('#comments').innerHTML = item.comments.map((c) => `
-      <div class="comment" data-i="${c.index}">
-        <div class="comment-head"><b>${esc(c.author)}</b><span class="muted small">${esc(c.time.slice(0, 16))}</span>
-          ${c.author === S.user ? '<span class="right"><button data-act="edit">Sửa</button><button data-act="del">Xóa</button></span>' : ''}</div>
-        <div class="cbody">${renderMd(c.text)}</div>
-      </div>`).join('')
-    afterRender($('#comments'))
-    $$('#comments .comment').forEach((el) => {
-      const c = item.comments[+el.dataset.i]
-      el.querySelector('[data-act=del]')?.addEventListener('click', async () => {
-        if (!confirm('Xóa bình luận này?')) return
-        try { setItem(await api(`/api/items/${id}/comments/${c.index}`, { method: 'DELETE', body: { time: c.time } })); drawComments() } catch (err) { toast(err.message, true) }
-      })
-      el.querySelector('[data-act=edit]')?.addEventListener('click', () => {
-        const body = el.querySelector('.cbody')
-        body.innerHTML = `<textarea>${esc(c.text)}</textarea><div class="actions-row"><button class="btn" data-x="cancel">Hủy</button><button class="btn primary" data-x="save">Lưu</button></div>`
-        const ta = body.querySelector('textarea')
-        attachUpload(ta)
-        S.dirty = true
-        body.querySelector('[data-x=cancel]').onclick = () => { S.dirty = false; drawComments() }
-        body.querySelector('[data-x=save]').onclick = async () => {
-          try { setItem(await api(`/api/items/${id}/comments/${c.index}`, { method: 'PUT', body: { text: ta.value, time: c.time } })); S.dirty = false; drawComments() } catch (err) { toast(err.message, true) }
-        }
-      })
-    })
-  }
-  drawComments()
-  const cText = $('#cText')
-  attachUpload(cText, $('#composer'))
-  cText.oninput = () => (S.dirty = !!cText.value.trim())
-  const send = async () => {
-    if (!cText.value.trim()) return
-    if (!S.user) return askUser()
-    try {
-      setItem(await api(`/api/items/${id}/comments`, { method: 'POST', body: { text: cText.value } }))
-      cText.value = ''
-      S.dirty = false
-      drawComments()
-    } catch (err) { toast(err.message, true) }
-  }
-  $('#cSend').onclick = send
-  cText.onkeydown = (e) => { if ((e.ctrlKey || e.metaKey) && e.key === 'Enter') send() }
-
-  $('#delBtn').onclick = async (e) => {
-    e.preventDefault()
-    if (!confirm(`Xóa hẳn ${id} và toàn bộ thảo luận của nó?`)) return
-    try {
-      await api(`/api/items/${id}`, { method: 'DELETE' })
-      await loadItems()
-      location.hash = `#/list/${item.meta.type}`
-    } catch (err) { toast(err.message, true) }
-  }
-
-  function onSaveError(err) {
-    if (err.status === 409) {
-      toast('Mục vừa được thay đổi ở nơi khác — đã tải lại bản mới nhất.', true)
-      S.dirty = false
-      renderItem(main, id)
-    } else toast(err.message, true)
-  }
-}
-
-// ===== truy vết & tìm kiếm =====
-function renderTrace(main) {
-  main.innerHTML = `<div class="page-head"><h1>Truy vết câu hỏi nghiên cứu</h1></div>
-    <p class="muted">Các mục được gắn với từng câu hỏi nghiên cứu (trường "Câu hỏi NC" trong phần Thông tin thêm).</p>
-    ${S.config.research_questions.map((q) => {
-      const rel = S.items.filter((i) => asList(i.meta.ch).includes(q.key) && i.meta.status !== 'dropped')
-      const tasks = rel.filter((i) => i.meta.type === 'task')
-      return `<div class="box"><h2>${q.key}. ${esc(q.label)}</h2>
-        <p class="small muted">${tasks.filter((i) => i.meta.status === 'done').length}/${tasks.length} đầu việc đã xong · ${rel.length} mục liên quan</p>
-        <ul class="simple">${rel.map((i) => `<li><span class="code">${i.meta.id}</span><a href="#/item/${i.meta.id}">${esc(i.meta.title)}</a><span style="margin-left:auto">${statusText(i.meta.type, i.meta.status)}</span></li>`).join('')}</ul></div>`
-    }).join('')}`
-}
-function renderSearch(main, q) {
-  const ql = q.toLowerCase()
-  const res = S.items.filter((i) => `${i.meta.id} ${i.meta.title} ${i.excerpt} ${(i.recent_comments || []).map((c) => c.text).join(' ')}`.toLowerCase().includes(ql))
-  main.innerHTML = `<div class="page-head"><h1>Kết quả cho "${esc(q)}"</h1><span class="muted">${res.length} mục</span></div>
-    <div class="box">${simpleList(res, 'Không tìm thấy.')}</div>`
-}
-
-// ===== người dùng =====
-function askUser() {
-  openModal(`<h2>Bạn là ai?</h2>
-    <p class="muted small">Tên dùng làm tác giả bình luận và commit, chỉ lưu trên máy này.</p>
-    <div class="field"><select id="uSel">${S.config.members.map((m) => `<option ${m === S.user ? 'selected' : ''}>${esc(m)}</option>`).join('')}<option value="">Tên khác…</option></select></div>
-    <div class="field hidden" id="uOtherWrap"><input id="uOther" placeholder="Nhập tên"></div>
-    <div class="actions-row"><button class="btn primary" id="uOk">Lưu</button></div>`)
-  $('#uSel').onchange = () => $('#uOtherWrap').classList.toggle('hidden', $('#uSel').value !== '')
-  $('#uOk').onclick = async () => {
-    const name = $('#uSel').value || $('#uOther').value.trim()
-    if (!name) return
-    await api('/api/user', { method: 'POST', body: { name } })
-    S.user = name
-    $('#userBtn').textContent = name
+function editTask(t) {
+  const { members, task_statuses: statuses } = doc.options
+  openModal(`<h2>${esc(t.id)}</h2>
+    <label>Việc</label><input id="tTitle" value="${esc(t.title)}">
+    <div class="row"><div class="grow"><label>Trạng thái</label><select id="tStatus">${statuses.map((s) => `<option ${s === t.status ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select></div>
+      <div class="grow"><label>Người làm</label><select id="tOwner"><option value=""></option>${[...new Set([...members, t.owner].filter(Boolean))].map((m) => `<option ${m === t.owner ? 'selected' : ''}>${esc(m)}</option>`).join('')}</select></div></div>
+    <label>Ghi chú</label><textarea id="tNote">${esc(t.note)}</textarea>
+    <div class="actions"><button class="btn danger left" id="tDel">Xóa</button><button class="btn" id="tCancel">Hủy</button><button class="btn primary" id="tSave">Lưu</button></div>`)
+  $('#tCancel').onclick = closeModal
+  $('#tSave').onclick = () => {
+    Object.assign(t, { title: $('#tTitle').value.trim() || t.title, status: $('#tStatus').value, owner: $('#tOwner').value, note: $('#tNote').value.replace(/\s*\n\s*/g, ' ').trim() })
     closeModal()
-    route()
+    save()
+  }
+  $('#tDel').onclick = () => {
+    if (!confirm(`Xóa việc "${t.title}"?`)) return
+    doc.tasks = doc.tasks.filter((x) => x !== t)
+    closeModal()
+    save('Đã xóa')
   }
 }
-$('#userBtn').onclick = askUser
 
-// ===== git =====
+// ===== 3. Mô hình =====
+const NUM_FIELDS = ['Accuracy', 'Precision', 'Recall', 'Macro-F1']
+function renderModels(view) {
+  const f = (m, k) => esc(m.fields[k] || '')
+  view.innerHTML = `
+    <table class="cmp"><thead><tr><th>Mã</th><th>Mô hình</th><th class="hide-sm">Bài toán</th><th>Trạng thái</th><th class="hide-sm">Dataset</th><th>Accuracy</th><th>Macro-F1</th></tr></thead>
+    <tbody>${doc.models.map((m) => `<tr><td class="muted">${esc(m.id)}</td><td><a href="#models" data-go="${esc(m.id)}">${esc(m.name)}</a></td><td class="hide-sm">${f(m, 'Bài toán')}</td>
+      <td><span class="badge s-${MODEL_COLOR[m.fields['Trạng thái']] || 'gray'}">${f(m, 'Trạng thái') || '—'}</span></td><td class="hide-sm">${f(m, 'Dataset')}</td>
+      <td class="num">${f(m, 'Accuracy')}</td><td class="num">${f(m, 'Macro-F1')}</td></tr>`).join('')}</tbody></table>
+    ${doc.models.map((m, i) => `<div class="card model s-${MODEL_COLOR[m.fields['Trạng thái']] || 'gray'}" id="m-${esc(m.id)}">
+      <div class="card-head"><h2>${esc(m.name)}</h2><span class="badge">${f(m, 'Trạng thái') || '—'}</span><button class="link right" data-edit="${i}">Sửa / nhập kết quả</button></div>
+      ${f(m, 'Mô tả') ? `<p class="muted" style="margin:0 0 10px">${f(m, 'Mô tả')}</p>` : ''}
+      <div class="kv">${['Bài toán', 'Nhóm', 'Dataset', ...NUM_FIELDS].map((k) => `<div><span>${k}</span>${f(m, k) || '<span class="muted">—</span>'}</div>`).join('')}</div>
+      <div class="section-label">Kết quả & nhận xét</div>${md(m.notes)}
+    </div>`).join('')}
+    <button class="btn" id="addModel">+ Thêm mô hình</button>`
+  $$('[data-go]', view).forEach((a) => (a.onclick = (e) => { e.preventDefault(); $(`#m-${a.dataset.go}`).scrollIntoView({ behavior: 'smooth' }) }))
+  $$('[data-edit]', view).forEach((b) => (b.onclick = () => editModel(+b.dataset.edit)))
+  $('#addModel').onclick = () => {
+    doc.models.push({ id: '', name: 'Mô hình mới', fields: { 'Trạng thái': doc.options.model_statuses[0] }, notes: '' })
+    editModel(doc.models.length - 1, true)
+  }
+}
+function editModel(i, isNew = false) {
+  const m = doc.models[i]
+  const input = (k) => k === 'Trạng thái'
+    ? `<select data-k="${k}">${doc.options.model_statuses.map((s) => `<option ${s === m.fields[k] ? 'selected' : ''}>${esc(s)}</option>`).join('')}</select>`
+    : `<input data-k="${k}" value="${esc(m.fields[k] || '')}" ${NUM_FIELDS.includes(k) ? 'placeholder="VD: 0.871"' : ''}>`
+  const card = $(`#m-${m.id}`) || $('#view').appendChild(Object.assign(document.createElement('div'), { className: 'card' }))
+  card.innerHTML = `<input id="mName" value="${esc(m.name)}" style="width:100%;font-weight:600;margin-bottom:12px">
+    <div class="kv">${doc.options.model_fields.filter((k) => k !== 'Mô tả').map((k) => `<div><label>${k}</label>${input(k)}</div>`).join('')}</div>
+    <label class="section-label">Mô tả ngắn</label><input data-k="Mô tả" value="${esc(m.fields['Mô tả'] || '')}" style="width:100%">
+    <div class="section-label">Kết quả & nhận xét (bảng số liệu, confusion matrix, ảnh… — dán ảnh bằng Ctrl+V)</div>
+    <textarea id="mNotes" style="min-height:220px">${esc(m.notes)}</textarea>
+    <div class="actions"><button class="btn danger left" id="mDel">Xóa mô hình</button><button class="btn" id="mCancel">Hủy</button><button class="btn primary" id="mSave">Lưu</button></div>`
+  attachUpload($('#mNotes'))
+  card.scrollIntoView({ block: 'start' })
+  $('#mCancel').onclick = () => { if (isNew) doc.models.pop(); render() }
+  $('#mSave').onclick = () => {
+    m.name = $('#mName').value.trim() || 'Không tên'
+    $$('[data-k]', card).forEach((el) => (m.fields[el.dataset.k] = el.value.trim()))
+    m.notes = $('#mNotes').value
+    save()
+  }
+  $('#mDel').onclick = () => { if (confirm(`Xóa mô hình "${m.name}"?`)) { doc.models.splice(i, 1); save('Đã xóa') } }
+}
+
+// ===== đồng bộ git =====
 async function refreshGit(fetch = false) {
   try {
     const g = await api('/api/git/status' + (fetch ? '?fetch=1' : ''))
-    const up = (g.local_changes || 0) + (g.ahead || 0)
+    const up = g.local_changes + g.ahead
     $('#syncInfo').textContent = [up ? `↑${up}` : '', g.behind ? `↓${g.behind}` : ''].filter(Boolean).join(' ')
-    $('#syncBtn').title = [up ? `${up} thay đổi chưa đẩy lên` : '', g.behind ? `${g.behind} cập nhật mới từ người khác` : ''].filter(Boolean).join(', ') || 'Đã đồng bộ'
-    if (fetch && g.behind && !S.notified) {
-      S.notified = true
-      toast(`Có ${g.behind} cập nhật mới — bấm Đồng bộ để lấy về`)
-    }
   } catch { /* bỏ qua */ }
 }
 $('#syncBtn').onclick = async () => {
-  if (S.dirty && !confirm('Nội dung đang soạn chưa lưu sẽ không được đồng bộ. Tiếp tục?')) return
   const btn = $('#syncBtn')
   btn.disabled = true
   try {
-    const r = await api('/api/git/sync', { method: 'POST', body: {} })
-    S.notified = false
-    if (!r.ok) {
-      openModal(`<h2>Đồng bộ chưa xong</h2><p>${esc(r.error)}</p><pre>${esc(r.log.join('\n\n'))}</pre><div class="actions-row"><button class="btn" onclick="closeModal()">Đóng</button></div>`, true)
-    } else if (r.renamed?.length) {
-      openModal(`<h2>Đồng bộ xong</h2><p>Người kia cũng vừa tạo mục cùng mã, nên mục của bạn được đổi mã: ${r.renamed.map(([a, b]) => `${esc(a)} → <a href="#/item/${esc(b)}" onclick="closeModal()">${esc(b)}</a>`).join(', ')}.</p><div class="actions-row"><button class="btn primary" onclick="closeModal()">OK</button></div>`)
-    } else toast('Đã đồng bộ')
-    await loadItems()
-    await refreshGit()
-    S.dirty = false
-    route()
-  } catch (e) {
-    toast(e.message, true)
-  } finally {
-    btn.disabled = false
-  }
+    const r = await api('/api/git/sync', { method: 'POST' })
+    if (r.ok) toast('Đã đồng bộ')
+    else openModal(`<h2>Chưa đồng bộ được</h2><p>${esc(r.error)}</p><pre>${esc(r.log.join('\n\n'))}</pre><div class="actions"><button class="btn" onclick="closeModal()">Đóng</button></div>`)
+    doc = await api('/api/doc')
+    render()
+    refreshGit()
+  } catch (e) { toast(e.message, true) } finally { btn.disabled = false }
 }
 
-// ===== khởi động =====
-;(async function init() {
-  if (window.mermaid) mermaid.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'strict' })
-  const meta = await api('/api/meta')
-  S.config = meta.config
-  S.user = meta.user
-  $('#userBtn').textContent = S.user || 'Chọn tên'
-  await loadItems()
-  await route()
-  if (!S.user) askUser()
+;(async () => {
+  doc = await api('/api/doc')
+  render()
   refreshGit(true)
   setInterval(() => refreshGit(false), 30_000)
   setInterval(() => refreshGit(true), 5 * 60_000)
-  window.addEventListener('focus', () => refreshGit(false))
 })().catch((e) => {
-  $('#main').innerHTML = `<div class="warn">Không kết nối được server: ${esc(e.message)}. Chạy <code>python pm/server.py</code> rồi tải lại trang.</div>`
+  $('#main').innerHTML = `<div class="warn">Không kết nối được server (${esc(e.message)}). Chạy <code>python pm/server.py</code> rồi tải lại trang.</div>`
 })

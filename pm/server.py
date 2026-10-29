@@ -1,11 +1,12 @@
-"""Server quản lý đề tài (chỉ dùng thư viện chuẩn Python 3.10+).
+"""Công cụ quản lý đề tài - toàn bộ dữ liệu nằm trong 1 file: pm/QUAN_LY_DE_TAI.md
 
-Chạy:  python pm/server.py   -> mở http://localhost:8765
+Chạy:  python pm/server.py   -> mở http://localhost:8765   (Python 3.10+, không cần cài gì)
 
-Dữ liệu là các file .md trong pm/items và pm/docs (mỗi mục 1 file, phần thảo luận chỉ
-thêm vào cuối) -> 2 người sửa song song trên git gần như không xung đột. Ảnh dán từ
-clipboard lưu ở pm/assets. Nút "Đồng bộ" trên giao diện chạy commit -> pull --rebase -> push
-(chỉ đụng tới thư mục pm/).
+File .md có 3 mục:
+  ## 1. Tổng quan      -> các tiểu mục "### Tiêu đề" + nội dung markdown tự do
+  ## 2. Việc cần làm   -> bảng | Mã | Việc | Trạng thái | Người làm | Ghi chú |
+  ## 3. Mô hình        -> mỗi mô hình 1 tiểu mục "### M-01 · Tên", các dòng "- Trường: giá trị",
+                          dòng trống, rồi phần kết quả & nhận xét tự do
 """
 from __future__ import annotations
 
@@ -21,353 +22,181 @@ import webbrowser
 from datetime import datetime
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
-from urllib.parse import parse_qs, unquote, urlparse
+from urllib.parse import unquote, urlparse
 
 PM_DIR = Path(__file__).resolve().parent
-ITEMS_DIR = PM_DIR / "items"
-DOCS_DIR = PM_DIR / "docs"
+DOC_PATH = PM_DIR / "QUAN_LY_DE_TAI.md"
 ASSETS_DIR = PM_DIR / "assets"
-CONFIG_PATH = PM_DIR / "config.json"
-USER_PATH = PM_DIR / ".user"
-INDEX_PATH = PM_DIR / "INDEX.md"
-STATIC_FILES = {"/": "index.html", "/index.html": "index.html", "/app.js": "app.js", "/style.css": "style.css"}
-
+STATIC = {"/": "index.html", "/index.html": "index.html", "/app.js": "app.js", "/style.css": "style.css"}
 HOST, PORT = "127.0.0.1", 8765
 MAX_UPLOAD = 15 * 1024 * 1024
-COMMENTS_HEADING = "## Thảo luận"
-COMMENTS_NOTE = "<!-- Chỉ thêm bình luận vào cuối file. Mỗi bình luận bắt đầu bằng: ### YYYY-MM-DD HH:MM:SS · Tên -->"
-COMMENT_RE = re.compile(r"^### (\d{4}-\d{2}-\d{2} \d{2}:\d{2}(?::\d{2})?) · (.+?)\s*$", re.M)
-ID_RE = re.compile(r"^[A-Z]{1,6}-\d{3,4}$")
-CHECK_RE = re.compile(r"^\s*[-*] \[( |x|X)\] +(?=\S)", re.M)  # bỏ qua dòng checklist trống của mẫu
-
 LOCK = threading.Lock()
 
-
-# ===== Cấu hình & người dùng =====
-
-
-def load_config() -> dict:
-    return json.loads(CONFIG_PATH.read_text(encoding="utf-8"))
-
-
-def current_user() -> str:
-    if USER_PATH.exists():
-        return USER_PATH.read_text(encoding="utf-8").strip()
-    return ""
+MEMBERS = ["Nam", "Lâm"]
+TASK_STATUSES = ["Chưa làm", "Đang làm", "Xong", "Tạm dừng"]
+MODEL_STATUSES = ["Ứng viên", "Đang thử", "Đã chọn", "Loại"]
+MODEL_FIELDS = ["Bài toán", "Nhóm", "Trạng thái", "Dataset", "Accuracy", "Precision", "Recall", "Macro-F1", "Mô tả"]
+TITLE = "# Quản lý đề tài NCKH"
+NOTE = "<!-- Sửa qua giao diện: python pm/server.py (http://localhost:8765). Sửa tay được nhưng giữ đúng định dạng 3 mục. -->"
+H_OVERVIEW, H_TASKS, H_MODELS = "## 1. Tổng quan", "## 2. Việc cần làm", "## 3. Mô hình"
 
 
-def type_by_prefix(config: dict) -> dict[str, str]:
-    return {t["prefix"]: key for key, t in config["types"].items()}
+# ===== đọc / ghi file .md =====
 
 
-def dir_for_type(type_key: str) -> Path:
-    return DOCS_DIR if type_key == "doc" else ITEMS_DIR
+def split_sections(text: str) -> dict[str, str]:
+    parts = re.split(r"^## (\d)\.[^\n]*$", text, flags=re.M)
+    return {parts[i]: parts[i + 1] for i in range(1, len(parts) - 1, 2)}
 
 
-# ===== Đọc/ghi file mục =====
+def split_subsections(block: str) -> list[tuple[str, str]]:
+    chunks = re.split(r"^### +(.+?)\s*$", block, flags=re.M)
+    return [(chunks[i].strip(), chunks[i + 1].strip("\n")) for i in range(1, len(chunks) - 1, 2)]
 
 
-def parse_value(raw: str):
-    raw = raw.strip()
-    if raw.startswith("[") and raw.endswith("]"):
-        return [v.strip() for v in raw[1:-1].split(",") if v.strip()]
-    return raw
+def parse_row(line: str) -> list[str]:
+    cells = re.split(r"(?<!\\)\|", line.strip().strip("|"))
+    return [c.strip().replace("\\|", "|") for c in cells]
 
 
-def format_value(value) -> str:
-    if isinstance(value, list):
-        return "[" + ", ".join(str(v).strip() for v in value if str(v).strip()) + "]"
-    return str(value).replace("\n", " ").strip()
-
-
-def parse_item_file(path: Path) -> dict:
-    text = path.read_text(encoding="utf-8").replace("\r\n", "\n")
-    meta: dict = {}
+def parse_doc(text: str) -> dict:
+    text = text.replace("\r\n", "\n")
+    sec = split_sections(text)
     warnings: list[str] = []
-    body = text
-    if text.startswith("---\n"):
-        end = text.find("\n---", 4)
-        if end != -1:
-            for line in text[4:end].split("\n"):
-                if not line.strip() or ":" not in line:
-                    continue
-                key, _, val = line.partition(":")
-                key = key.strip()
-                if key in meta:
-                    # Thường do merge=union khi 2 người cùng sửa 1 trường -> giữ giá trị sau, báo để xem lại
-                    warnings.append(f"Trường '{key}' bị lặp (có thể do 2 người cùng sửa) - đang lấy giá trị sau cùng")
-                meta[key] = parse_value(val)
-            body = text[end + 4:].lstrip("\n")
 
-    content, comments = body, []
-    idx = body.find("\n" + COMMENTS_HEADING)
-    if body.startswith(COMMENTS_HEADING):
-        idx = -1
-        content, rest = "", body[len(COMMENTS_HEADING):]
-        comments = split_comments(rest)
-    elif idx != -1:
-        content = body[:idx]
-        comments = split_comments(body[idx + 1 + len(COMMENTS_HEADING):])
+    overview = [{"title": t, "body": b.strip()} for t, b in split_subsections(sec.get("1", ""))]
 
-    checks = CHECK_RE.findall(content)
+    tasks: list[dict] = []
+    seen: dict[str, dict] = {}
+    for line in sec.get("2", "").split("\n"):
+        if not line.strip().startswith("|") or re.match(r"^\s*\|[\s:|-]+\|\s*$", line):
+            continue
+        cells = parse_row(line) + [""] * 5
+        if cells[0] in ("Mã", ""):
+            continue
+        task = {"id": cells[0], "title": cells[1], "status": cells[2] or TASK_STATUSES[0], "owner": cells[3], "note": cells[4]}
+        old = seen.get(task["id"])
+        if old and old["title"] == task["title"]:
+            # 2 người cùng sửa 1 việc rồi git merge -> giữ dòng sau, báo để kiểm tra
+            warnings.append(f"Việc {task['id']} có 2 dòng (2 người cùng sửa) - đang lấy dòng sau, kiểm tra lại trạng thái/ghi chú.")
+            old.update(task)
+            continue
+        if old:  # 2 người cùng thêm việc mới trùng mã -> đổi mã việc sau
+            task["id"] = next_id(tasks, "T")
+            warnings.append(f"Mã trùng - đã đổi '{cells[1]}' sang {task['id']}.")
+        seen[task["id"]] = task
+        tasks.append(task)
+
+    models: list[dict] = []
+    for head, body in split_subsections(sec.get("3", "")):
+        m = re.match(r"^([A-Z]+-\d+)\s*[·\-]\s*(.+)$", head)
+        model = {"id": m.group(1) if m else next_id(models, "M"), "name": m.group(2).strip() if m else head, "fields": {}, "notes": ""}
+        lines = body.strip("\n").split("\n")
+        i = 0
+        while i < len(lines) and (fm := re.match(r"^- ([^:]+):\s?(.*)$", lines[i])) and fm.group(1).strip() in MODEL_FIELDS:
+            model["fields"][fm.group(1).strip()] = fm.group(2).strip()
+            i += 1
+        model["notes"] = "\n".join(lines[i:]).strip()
+        if any(x["id"] == model["id"] for x in models):
+            model["id"] = next_id(models, "M")
+        models.append(model)
+
     return {
-        "meta": meta,
-        "content": content.rstrip() + "\n" if content.strip() else "",
-        "comments": comments,
-        "checklist": {"done": sum(1 for c in checks if c.lower() == "x"), "total": len(checks)},
-        "warnings": warnings,
+        "overview": overview, "tasks": tasks, "models": models, "warnings": warnings,
         "rev": hashlib.sha1(text.encode("utf-8")).hexdigest()[:12],
-        "file": path.relative_to(PM_DIR).as_posix(),
+        "options": {"members": MEMBERS, "task_statuses": TASK_STATUSES, "model_statuses": MODEL_STATUSES, "model_fields": MODEL_FIELDS},
     }
 
 
-def split_comments(section: str) -> list[dict]:
-    matches = list(COMMENT_RE.finditer(section))
-    comments = []
-    for i, m in enumerate(matches):
-        end = matches[i + 1].start() if i + 1 < len(matches) else len(section)
-        comments.append({
-            "index": i,
-            "time": m.group(1),
-            "author": m.group(2),
-            "text": section[m.end():end].strip("\n").rstrip(),
-        })
-    return comments
+def next_id(items: list[dict], prefix: str) -> str:
+    nums = [int(m.group(1)) for x in items if (m := re.match(rf"^{prefix}-(\d+)$", x.get("id", "")))]
+    return f"{prefix}-{(max(nums) + 1) if nums else 1:02d}"
 
 
-def render_item_file(meta: dict, content: str, comments: list[dict]) -> str:
-    order = ["id", "type", "title", "status"]
-    keys = order + [k for k in meta if k not in order]
-    lines = ["---"] + [f"{k}: {format_value(meta[k])}" for k in keys if k in meta and meta[k] not in (None, "", [])] + ["---", ""]
-    out = "\n".join(lines) + "\n" + (content.strip() + "\n\n" if content.strip() else "")
-    out += COMMENTS_HEADING + "\n" + COMMENTS_NOTE + "\n"
-    for c in comments:
-        out += f"\n### {c['time']} · {c['author']}\n{c['text'].strip()}\n"
-    return out
+def cell(value) -> str:
+    return str(value or "").replace("\r", "").replace("\n", " ").replace("|", "\\|").strip()
 
 
-def find_item_path(item_id: str) -> Path | None:
-    if not ID_RE.match(item_id):
-        return None
-    for folder in (ITEMS_DIR, DOCS_DIR):
-        for p in folder.glob(f"{item_id}*.md"):
-            if p.name == f"{item_id}.md" or p.name.startswith(f"{item_id}-"):
-                return p
-    return None
+def render_doc(data: dict) -> str:
+    out = [TITLE, "", NOTE, "", H_OVERVIEW, ""]
+    for sub in data.get("overview", []):
+        title = cell(sub.get("title")).replace("\\|", "|") or "Không tên"
+        body = re.sub(r"^(#{1,3}) ", "#### ", str(sub.get("body", "")).strip(), flags=re.M)  # không phá cấu trúc mục
+        out += [f"### {title}", "", body, ""] if body else [f"### {title}", ""]
+
+    out += [H_TASKS, "", "| Mã | Việc | Trạng thái | Người làm | Ghi chú |", "|---|---|---|---|---|"]
+    tasks = data.get("tasks", [])
+    for t in tasks:
+        tid = t.get("id") or next_id(tasks, "T")
+        t["id"] = tid
+        out.append(f"| {tid} | {cell(t.get('title'))} | {cell(t.get('status')) or TASK_STATUSES[0]} | {cell(t.get('owner'))} | {cell(t.get('note'))} |")
+    out.append("")
+
+    out += [H_MODELS, ""]
+    models = data.get("models", [])
+    for m in models:
+        mid = m.get("id") or next_id(models, "M")
+        m["id"] = mid
+        out.append(f"### {mid} · {cell(m.get('name')).replace(chr(92) + '|', '|')}")
+        fields = m.get("fields", {})
+        out += [f"- {k}: {cell(fields.get(k)).replace(chr(92) + '|', '|')}" for k in MODEL_FIELDS]
+        notes = re.sub(r"^(#{1,3}) ", "#### ", str(m.get("notes", "")).strip(), flags=re.M)
+        out += ["", notes, ""] if notes else [""]
+    return "\n".join(out).rstrip() + "\n"
 
 
-def slugify(title: str) -> str:
-    table = str.maketrans(
-        "àáạảãâầấậẩẫăằắặẳẵèéẹẻẽêềếệểễìíịỉĩòóọỏõôồốộổỗơờớợởỡùúụủũưừứựửữỳýỵỷỹđ",
-        "aaaaaaaaaaaaaaaaaeeeeeeeeeeeiiiiiooooooooooooooooouuuuuuuuuuuyyyyyd",
-    )
-    s = title.lower().translate(table)
-    s = re.sub(r"[^a-z0-9]+", "-", s).strip("-")
-    return s[:50].rstrip("-") or "muc"
+def read_doc() -> dict:
+    if not DOC_PATH.exists():
+        DOC_PATH.write_text(render_doc({}), encoding="utf-8")
+    return parse_doc(DOC_PATH.read_text(encoding="utf-8"))
 
 
-def list_items() -> list[dict]:
-    items = []
-    for folder in (DOCS_DIR, ITEMS_DIR):
-        for p in sorted(folder.glob("*.md")):
-            try:
-                parsed = parse_item_file(p)
-            except Exception as exc:  # file hỏng không làm sập cả danh sách
-                items.append({"meta": {"id": p.stem, "title": p.name}, "warnings": [f"Lỗi đọc file: {exc}"], "file": p.name})
-                continue
-            last = parsed["comments"][-1] if parsed["comments"] else None
-            items.append({
-                "meta": parsed["meta"],
-                "checklist": parsed["checklist"],
-                "comment_count": len(parsed["comments"]),
-                "last_comment": {"time": last["time"], "author": last["author"]} if last else None,
-                "recent_comments": [
-                    {"time": c["time"], "author": c["author"], "text": c["text"][:160]} for c in parsed["comments"][-3:]
-                ],
-                "excerpt": parsed["content"][:400],
-                "warnings": parsed["warnings"],
-                "file": parsed["file"],
-            })
-    return items
-
-
-def next_id(config: dict, type_key: str) -> str:
-    prefix = config["types"][type_key]["prefix"]
-    folder = dir_for_type(type_key)
-    nums = [int(m.group(1)) for p in folder.glob(f"{prefix}-*.md") if (m := re.match(rf"{prefix}-(\d+)", p.name))]
-    return f"{prefix}-{(max(nums) + 1) if nums else 1:03d}"
-
-
-def now_str() -> str:
-    return datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-
-
-# ===== INDEX.md (chỉ sinh lúc đồng bộ để tránh xung đột git) =====
-
-
-def build_index() -> str:
-    config = load_config()
-    items = list_items()
-    out = [
-        "# Bảng tổng hợp quản lý đề tài",
-        "",
-        "> File tự sinh bởi `pm/server.py` mỗi lần bấm **Đồng bộ** - không sửa tay. "
-        "Xem/sửa đầy đủ: `python pm/server.py` rồi mở http://localhost:8765",
-        "",
-    ]
-    for type_key, t in config["types"].items():
-        group = [i for i in items if i["meta"].get("type") == type_key]
-        if not group:
-            continue
-        labels = {s["key"]: s["label"] for s in t["statuses"]}
-        counts = {}
-        for i in group:
-            counts[i["meta"].get("status", "")] = counts.get(i["meta"].get("status", ""), 0) + 1
-        summary = ", ".join(f"{labels.get(k, k)}: {v}" for k, v in counts.items())
-        out += [f"## {t['label']} ({len(group)}) — {summary}", "", "| ID | Tiêu đề | Trạng thái | Phụ trách | Checklist | Thảo luận |", "|---|---|---|---|---|---|"]
-        for i in group:
-            m = i["meta"]
-            ck = i["checklist"]
-            progress = "%d/%d" % (ck["done"], ck["total"]) if ck["total"] else ""
-            title = str(m.get("title", "")).replace("|", "\\|")
-            status = labels.get(m.get("status", ""), m.get("status", ""))
-            out.append(
-                f"| [{m.get('id')}]({i['file']}) | {title} | {status} "
-                f"| {m.get('owner', '')} | {progress} | {i['comment_count'] or ''} |"
-            )
-        out.append("")
-    return "\n".join(out)
-
-
-# ===== Git =====
+# ===== git =====
 
 
 def git(*args: str, timeout: int = 60) -> subprocess.CompletedProcess:
-    return subprocess.run(
-        ["git", *args], cwd=PM_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout,
-    )
+    return subprocess.run(["git", *args], cwd=PM_DIR, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=timeout)
 
 
 def git_status(fetch: bool) -> dict:
-    result: dict = {"ok": True}
     if fetch:
-        f = git("fetch", "--quiet", timeout=30)
-        result["fetch_error"] = f.stderr.strip() if f.returncode else ""
-    result["branch"] = git("rev-parse", "--abbrev-ref", "HEAD").stdout.strip()
-    porcelain = git("status", "--porcelain", "--untracked-files=all", "--", ".").stdout.splitlines()
-    changed = [line for line in porcelain if not line.endswith("INDEX.md")]
-    result["local_changes"] = len(changed)
+        git("fetch", "--quiet", timeout=30)
+    changed = git("status", "--porcelain", "--untracked-files=all", "--", ".").stdout.splitlines()
+    res = {"local_changes": len(changed), "ahead": 0, "behind": 0}
     counts = git("rev-list", "--left-right", "--count", "HEAD...@{u}")
     if counts.returncode == 0:
-        ahead, behind = counts.stdout.split()
-        result["ahead"], result["behind"] = int(ahead), int(behind)
-    else:
-        result["ahead"] = result["behind"] = 0
-        result["upstream_error"] = counts.stderr.strip()
-    return result
+        res["ahead"], res["behind"] = map(int, counts.stdout.split())
+    return res
 
 
-def changed_ids(names: list[str]) -> list[str]:
-    ids = []
-    for n in names:
-        m = re.search(r"/([A-Z]{1,6}-\d{3,4})", "/" + n)
-        if m and m.group(1) not in ids:
-            ids.append(m.group(1))
-    return ids
-
-
-def git_sync(user: str) -> dict:
+def git_sync() -> dict:
     log: list[str] = []
 
-    def step(*args: str, timeout: int = 120) -> subprocess.CompletedProcess:
+    def step(*args: str, timeout: int = 180) -> subprocess.CompletedProcess:
         r = git(*args, timeout=timeout)
         log.append(f"$ git {' '.join(args)}\n{(r.stdout + r.stderr).strip()}")
         return r
 
-    # 1. INDEX.md là file sinh tự động -> bỏ thay đổi cục bộ, sinh lại sau khi pull
-    git("checkout", "--", "INDEX.md")
     step("add", "-A", "--", ".")
-    git("reset", "--quiet", "--", "INDEX.md")
-    staged = git("diff", "--cached", "--name-only", "--", ".").stdout.split()
-    if staged:
-        ids = changed_ids(staged)
-        what = ", ".join(ids[:6]) + (f" +{len(ids) - 6}" if len(ids) > 6 else "") if ids else "cập nhật"
-        r = step("commit", "-m", f"pm: {what} ({user or 'không rõ'})", "--", ".")
-        if r.returncode:
-            return {"ok": False, "error": "Commit thất bại", "log": log}
-
-    # 2. Lấy thay đổi của người kia
-    r = step("pull", "--rebase", "--autostash", timeout=180)
+    if git("diff", "--cached", "--name-only", "--", ".").stdout.strip():
+        if step("commit", "-m", f"pm: cập nhật quản lý đề tài ({datetime.now():%Y-%m-%d %H:%M})", "--", ".").returncode:
+            return {"ok": False, "error": "Commit thất bại.", "log": log}
+    r = step("pull", "--rebase", "--autostash")
     if r.returncode:
-        if (Path(git("rev-parse", "--git-dir").stdout.strip()) / "rebase-merge").exists() or "rebase" in r.stderr.lower():
-            step("rebase", "--abort")
-        return {"ok": False, "error": "Pull thất bại (xung đột hoặc lỗi mạng) - đã hoàn tác rebase, dữ liệu cục bộ vẫn nguyên. Xem log.", "log": log}
-
-    # 3. Hai người cùng tạo mục mới khi chưa đồng bộ -> trùng mã. Đổi mã mục của mình (vừa commit).
-    renamed = fix_duplicate_ids(staged)
-    if renamed:
-        step("add", "-A", "--", "items", "docs")
-        step("commit", "-m", "pm: đổi mã do trùng " + ", ".join(f"{a}→{b}" for a, b in renamed), "--", ".")
-
-    # 4. Sinh lại INDEX.md và commit nếu đổi
-    INDEX_PATH.write_text(build_index(), encoding="utf-8")
-    if git("status", "--porcelain", "--", "INDEX.md").stdout.strip():
-        step("add", "--", "INDEX.md")
-        step("commit", "-m", "pm: cập nhật INDEX.md", "--", "INDEX.md")
-
-    # 5. Đẩy lên
-    status = git_status(fetch=False)
-    if status.get("ahead"):
-        r = step("push", timeout=180)
-        if r.returncode:
-            return {"ok": False, "error": "Push thất bại - xem log (có thể chưa đăng nhập GitHub hoặc không có quyền).", "log": log}
-    return {"ok": True, "log": log, "committed": bool(staged), "renamed": renamed}
-
-
-def fix_duplicate_ids(mine: list[str]) -> list[tuple[str, str]]:
-    """Mã bị trùng sau khi pull -> đổi mã file do mình vừa tạo (nằm trong `mine`) sang mã trống kế tiếp,
-    và sửa các chỗ nhắc mã cũ trong những file mình vừa sửa."""
-    config = load_config()
-    by_id: dict[str, list[Path]] = {}
-    for folder in (ITEMS_DIR, DOCS_DIR):
-        for p in folder.glob("*.md"):
-            if m := re.match(r"^([A-Z]{1,6}-\d{3,4})", p.name):
-                by_id.setdefault(m.group(1), []).append(p)
-    mine_names = {Path(n).name for n in mine}
-    prefixes = type_by_prefix(config)
-    renamed = []
-    for old_id, paths in by_id.items():
-        if len(paths) < 2:
-            continue
-        for p in [p for p in paths if p.name in mine_names][: len(paths) - 1]:
-            type_key = prefixes.get(old_id.split("-")[0])
-            if not type_key:
-                continue
-            new_id = next_id(config, type_key)
-            parsed = parse_item_file(p)
-            meta = dict(parsed["meta"], id=new_id)
-            target = p.with_name(new_id + p.name[len(old_id):])
-            target.write_text(render_item_file(meta, parsed["content"], parsed["comments"]), encoding="utf-8")
-            p.unlink()
-            renamed.append((old_id, new_id))
-            for n in mine_names - {p.name}:
-                other = next((q for f in (ITEMS_DIR, DOCS_DIR) if (q := f / n).exists()), None)
-                if other:
-                    txt = other.read_text(encoding="utf-8")
-                    other.write_text(re.sub(rf"\b{re.escape(old_id)}\b", new_id, txt), encoding="utf-8")
-    return renamed
+        step("rebase", "--abort")
+        return {"ok": False, "error": "Lấy thay đổi về thất bại (mạng hoặc xung đột) - đã hoàn tác, dữ liệu trên máy vẫn nguyên.", "log": log}
+    if git_status(False)["ahead"] and step("push").returncode:
+        return {"ok": False, "error": "Đẩy lên thất bại - kiểm tra đăng nhập GitHub / quyền ghi.", "log": log}
+    return {"ok": True, "log": log}
 
 
 # ===== HTTP =====
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "pm/1.0"
+    def log_message(self, fmt, *args):
+        pass
 
-    def log_message(self, fmt, *args):  # gọn log
-        sys.stderr.write("%s %s\n" % (self.command, self.path))
-
-    # --- tiện ích ---
     def send_json(self, data, status: int = 200):
         body = json.dumps(data, ensure_ascii=False).encode("utf-8")
         self.send_response(status)
@@ -377,256 +206,109 @@ class Handler(BaseHTTPRequestHandler):
         self.end_headers()
         self.wfile.write(body)
 
-    def error(self, status: int, message: str):
-        self.send_json({"error": message}, status)
-
-    def read_body(self) -> bytes:
-        length = int(self.headers.get("Content-Length") or 0)
-        if length > MAX_UPLOAD:
-            raise ValueError("File quá lớn (tối đa 15MB)")
-        return self.rfile.read(length) if length else b""
-
-    def read_json(self) -> dict:
-        raw = self.read_body()
-        try:
-            return json.loads(raw.decode("utf-8")) if raw else {}
-        except (UnicodeDecodeError, json.JSONDecodeError) as exc:
-            raise ValueError(f"Dữ liệu gửi lên không hợp lệ (cần JSON UTF-8): {exc}") from exc
-
-    def dispatch(self, fn):
-        """Bọc mọi handler: lỗi dữ liệu -> 400, lỗi khác -> 500 kèm thông báo (không đóng kết nối im lặng)."""
-        try:
-            return fn()
-        except ValueError as exc:
-            return self.error(400, str(exc))
-        except Exception as exc:  # noqa: BLE001
-            self.log_error("Lỗi xử lý %s: %r", self.path, exc)
-            return self.error(500, f"Lỗi server: {exc}")
-
     def send_file(self, path: Path):
         if not path.is_file():
-            return self.error(404, "Không tìm thấy")
+            return self.send_json({"error": "Không tìm thấy"}, 404)
         data = path.read_bytes()
         ctype = mimetypes.guess_type(path.name)[0] or "application/octet-stream"
-        if ctype.startswith("text/") or ctype in ("application/javascript",):
-            ctype += "; charset=utf-8"
         self.send_response(200)
-        self.send_header("Content-Type", ctype)
+        self.send_header("Content-Type", ctype + ("; charset=utf-8" if ctype.startswith("text/") or "javascript" in ctype else ""))
         self.send_header("Content-Length", str(len(data)))
         self.send_header("Cache-Control", "no-cache")
         self.end_headers()
         self.wfile.write(data)
 
-    def check_origin(self) -> bool:
-        # Chặn trang web lạ gửi request ghi dữ liệu tới server local
-        origin = self.headers.get("Origin")
-        return origin is None or origin in (f"http://localhost:{PORT}", f"http://127.0.0.1:{PORT}")
+    def body(self) -> bytes:
+        n = int(self.headers.get("Content-Length") or 0)
+        if n > MAX_UPLOAD:
+            raise ValueError("File quá lớn (tối đa 15MB)")
+        return self.rfile.read(n) if n else b""
 
-    # --- định tuyến ---
+    def safe(self, fn):
+        try:
+            fn()
+        except ValueError as exc:
+            self.send_json({"error": str(exc)}, 400)
+        except Exception as exc:  # noqa: BLE001
+            self.send_json({"error": f"Lỗi server: {exc}"}, 500)
+
+    def origin_ok(self) -> bool:  # chặn trang web lạ gửi lệnh ghi tới server local
+        o = self.headers.get("Origin")
+        return o is None or o in (f"http://localhost:{PORT}", f"http://127.0.0.1:{PORT}")
+
     def do_GET(self):
-        self.dispatch(self.route_get)
-
-    def do_POST(self):
-        self.dispatch(self.route_post)
+        self.safe(self._get)
 
     def do_PUT(self):
-        self.dispatch(self.route_put)
+        self.safe(self._write)
 
-    def do_DELETE(self):
-        self.dispatch(self.route_delete)
+    def do_POST(self):
+        self.safe(self._write)
 
-    def route_get(self):
+    def _get(self):
         url = urlparse(self.path)
         path = unquote(url.path)
-        if path in STATIC_FILES:
-            return self.send_file(PM_DIR / STATIC_FILES[path])
+        if path in STATIC:
+            return self.send_file(PM_DIR / STATIC[path])
         if path.startswith("/assets/"):
-            target = (ASSETS_DIR / path[len("/assets/"):]).resolve()
+            target = (ASSETS_DIR / path[8:]).resolve()
             if ASSETS_DIR.resolve() not in target.parents:
-                return self.error(403, "Đường dẫn không hợp lệ")
+                return self.send_json({"error": "Đường dẫn không hợp lệ"}, 403)
             return self.send_file(target)
-        if path == "/api/meta":
-            return self.send_json({"config": load_config(), "user": current_user()})
-        if path == "/api/items":
-            return self.send_json(list_items())
-        if m := re.match(r"^/api/items/([A-Z]{1,6}-\d{3,4})$", path):
-            p = find_item_path(m.group(1))
-            return self.send_json(parse_item_file(p)) if p else self.error(404, "Không tìm thấy mục")
+        if path == "/api/doc":
+            with LOCK:
+                return self.send_json(read_doc())
         if path == "/api/git/status":
-            fetch = parse_qs(url.query).get("fetch", ["0"])[0] == "1"
-            try:
-                return self.send_json(git_status(fetch))
-            except Exception as exc:
-                return self.send_json({"ok": False, "error": str(exc)})
-        return self.error(404, "Không tìm thấy")
+            return self.send_json(git_status("fetch=1" in url.query))
+        self.send_json({"error": "Không tìm thấy"}, 404)
 
-    def route_post(self):
-        if not self.check_origin():
-            return self.error(403, "Origin không hợp lệ")
+    def _write(self):
+        if not self.origin_ok():
+            return self.send_json({"error": "Origin không hợp lệ"}, 403)
         path = urlparse(self.path).path
-        if path == "/api/user":
-            name = str(self.read_json().get("name", "")).strip()
-            if not name:
-                return self.error(400, "Thiếu tên")
-            USER_PATH.write_text(name, encoding="utf-8")
-            return self.send_json({"user": name})
-        if path == "/api/items":
-            return self.create_item(self.read_json())
-        if m := re.match(r"^/api/items/([A-Z]{1,6}-\d{3,4})/comments$", path):
-            return self.add_comment(m.group(1), self.read_json())
+        if path == "/api/doc" and self.command == "PUT":
+            try:
+                data = json.loads(self.body().decode("utf-8"))
+            except (UnicodeDecodeError, json.JSONDecodeError) as exc:
+                raise ValueError(f"Dữ liệu không hợp lệ: {exc}") from exc
+            with LOCK:
+                current = read_doc()
+                if data.get("rev") != current["rev"]:
+                    return self.send_json({"error": "File vừa được thay đổi ở nơi khác (VD sau khi đồng bộ) - đã tải lại bản mới.", "current": current}, 409)
+                DOC_PATH.write_text(render_doc(data), encoding="utf-8")
+                return self.send_json(read_doc())
         if path == "/api/upload":
-            return self.upload()
+            ctype = (self.headers.get("Content-Type") or "").split(";")[0].strip()
+            ext = (mimetypes.guess_extension(ctype) or Path(unquote(self.headers.get("X-Filename") or "")).suffix or ".bin").lower()
+            ext = ".jpg" if ext == ".jpe" else ext
+            if not re.match(r"^\.[a-z0-9]{1,5}$", ext):
+                raise ValueError("Loại file không hợp lệ")
+            data = self.body()
+            if not data:
+                raise ValueError("File trống")
+            ASSETS_DIR.mkdir(exist_ok=True)
+            name = f"{datetime.now():%Y%m%d-%H%M%S}-{secrets.token_hex(3)}{ext}"
+            (ASSETS_DIR / name).write_bytes(data)
+            return self.send_json({"path": f"assets/{name}", "is_image": ctype.startswith("image/")}, 201)
         if path == "/api/git/sync":
             with LOCK:
-                return self.send_json(git_sync(current_user()))
-        return self.error(404, "Không tìm thấy")
-
-    def route_put(self):
-        if not self.check_origin():
-            return self.error(403, "Origin không hợp lệ")
-        path = urlparse(self.path).path
-        if m := re.match(r"^/api/items/([A-Z]{1,6}-\d{3,4})$", path):
-            return self.update_item(m.group(1), self.read_json())
-        if m := re.match(r"^/api/items/([A-Z]{1,6}-\d{3,4})/comments/(\d+)$", path):
-            return self.edit_comment(m.group(1), int(m.group(2)), self.read_json())
-        return self.error(404, "Không tìm thấy")
-
-    def route_delete(self):
-        if not self.check_origin():
-            return self.error(403, "Origin không hợp lệ")
-        path = urlparse(self.path).path
-        if m := re.match(r"^/api/items/([A-Z]{1,6}-\d{3,4})$", path):
-            with LOCK:
-                p = find_item_path(m.group(1))
-                if not p:
-                    return self.error(404, "Không tìm thấy mục")
-                p.unlink()
-            return self.send_json({"ok": True})
-        if m := re.match(r"^/api/items/([A-Z]{1,6}-\d{3,4})/comments/(\d+)$", path):
-            return self.edit_comment(m.group(1), int(m.group(2)), self.read_json(), delete=True)
-        return self.error(404, "Không tìm thấy")
-
-    # --- nghiệp vụ ---
-    def create_item(self, data: dict):
-        config = load_config()
-        type_key = data.get("type")
-        if type_key not in config["types"]:
-            return self.error(400, "Loại mục không hợp lệ")
-        title = str(data.get("title", "")).strip()
-        if not title:
-            return self.error(400, "Thiếu tiêu đề")
-        t = config["types"][type_key]
-        with LOCK:
-            item_id = next_id(config, type_key)
-            meta = {"id": item_id, "type": type_key, "title": title, "status": t["statuses"][0]["key"]}
-            for k, v in (data.get("meta") or {}).items():
-                if k not in ("id", "type"):
-                    meta[k] = v
-            meta.setdefault("created_by", current_user())
-            content = data.get("content") or t.get("template", "")
-            folder = dir_for_type(type_key)
-            folder.mkdir(parents=True, exist_ok=True)
-            path = folder / f"{item_id}-{slugify(title)}.md"
-            path.write_text(render_item_file(meta, content, []), encoding="utf-8")
-        return self.send_json(parse_item_file(path), 201)
-
-    def update_item(self, item_id: str, data: dict):
-        with LOCK:
-            p = find_item_path(item_id)
-            if not p:
-                return self.error(404, "Không tìm thấy mục")
-            current = parse_item_file(p)
-            if data.get("rev") and data["rev"] != current["rev"]:
-                return self.send_json({"error": "Mục vừa được thay đổi ở nơi khác (VD sau khi đồng bộ). Tải lại rồi sửa tiếp.", "conflict": True, "current": current}, 409)
-            meta = dict(current["meta"])
-            for k, v in (data.get("meta") or {}).items():
-                if k in ("id", "type"):
-                    continue
-                if v in (None, "", []):
-                    meta.pop(k, None)
-                else:
-                    meta[k] = v
-            content = data["content"] if "content" in data else current["content"]
-            p.write_text(render_item_file(meta, content, current["comments"]), encoding="utf-8")
-            return self.send_json(parse_item_file(p))
-
-    def add_comment(self, item_id: str, data: dict):
-        text = str(data.get("text", "")).strip()
-        if not text:
-            return self.error(400, "Bình luận trống")
-        user = current_user()
-        if not user:
-            return self.error(400, "Chưa đặt tên người dùng")
-        with LOCK:
-            p = find_item_path(item_id)
-            if not p:
-                return self.error(404, "Không tìm thấy mục")
-            raw = p.read_text(encoding="utf-8").replace("\r\n", "\n")
-            if COMMENTS_HEADING not in raw:
-                raw = raw.rstrip("\n") + "\n\n" + COMMENTS_HEADING + "\n" + COMMENTS_NOTE + "\n"
-            # Chỉ append vào cuối file -> 2 người bình luận song song vẫn merge được (merge=union)
-            raw = raw.rstrip("\n") + f"\n\n### {now_str()} · {user}\n{text}\n"
-            p.write_text(raw, encoding="utf-8")
-            return self.send_json(parse_item_file(p), 201)
-
-    def edit_comment(self, item_id: str, index: int, data: dict, delete: bool = False):
-        user = current_user()
-        with LOCK:
-            p = find_item_path(item_id)
-            if not p:
-                return self.error(404, "Không tìm thấy mục")
-            current = parse_item_file(p)
-            comments = current["comments"]
-            if index >= len(comments):
-                return self.error(404, "Không tìm thấy bình luận")
-            c = comments[index]
-            if data.get("time") and data["time"] != c["time"]:
-                return self.error(409, "Bình luận đã thay đổi vị trí - tải lại trang")
-            if c["author"] != user:
-                return self.error(403, "Chỉ sửa/xóa được bình luận của chính mình")
-            if delete:
-                comments.pop(index)
-            else:
-                text = str(data.get("text", "")).strip()
-                if not text:
-                    return self.error(400, "Bình luận trống")
-                c["text"] = text
-            p.write_text(render_item_file(current["meta"], current["content"], comments), encoding="utf-8")
-            return self.send_json(parse_item_file(p))
-
-    def upload(self):
-        ctype = (self.headers.get("Content-Type") or "").split(";")[0].strip()
-        name = self.headers.get("X-Filename") or ""
-        ext = mimetypes.guess_extension(ctype) or Path(unquote(name)).suffix or ".bin"
-        if ext == ".jpe":
-            ext = ".jpg"
-        if not re.match(r"^\.[a-z0-9]{1,5}$", ext.lower()):
-            return self.error(400, "Loại file không hợp lệ")
-        data = self.read_body()
-        if not data:
-            return self.error(400, "File trống")
-        ASSETS_DIR.mkdir(parents=True, exist_ok=True)
-        stem = slugify(Path(unquote(name)).stem)[:30] if name else "anh"
-        fname = f"{datetime.now():%Y%m%d-%H%M%S}-{stem}-{secrets.token_hex(2)}{ext.lower()}"
-        (ASSETS_DIR / fname).write_bytes(data)
-        return self.send_json({"path": f"../assets/{fname}", "url": f"/assets/{fname}", "name": fname, "is_image": ctype.startswith("image/")}, 201)
+                return self.send_json(git_sync())
+        self.send_json({"error": "Không tìm thấy"}, 404)
 
 
 def main():
     global PORT
-    port_args = [a for a in sys.argv[1:] if a.isdigit()]
-    port = PORT = int(port_args[0]) if port_args else PORT
-    for d in (ITEMS_DIR, DOCS_DIR, ASSETS_DIR):
-        d.mkdir(parents=True, exist_ok=True)
-    httpd = ThreadingHTTPServer((HOST, port), Handler)
-    url = f"http://localhost:{port}"
-    print(f"Quản lý đề tài đang chạy tại {url}  (Ctrl+C để dừng)")
+    ports = [a for a in sys.argv[1:] if a.isdigit()]
+    PORT = int(ports[0]) if ports else PORT
+    httpd = ThreadingHTTPServer((HOST, PORT), Handler)
+    url = f"http://localhost:{PORT}"
+    print(f"Quản lý đề tài: {url}  (Ctrl+C để dừng)")
     if "--no-browser" not in sys.argv:
         threading.Timer(0.5, lambda: webbrowser.open(url)).start()
     try:
         httpd.serve_forever()
     except KeyboardInterrupt:
-        print("\nĐã dừng.")
+        pass
 
 
 if __name__ == "__main__":
