@@ -1,0 +1,4 @@
+# Mỗi mục 1 file, thảo luận chỉ append cuối file -> merge union giữ được bình luận của cả 2 người
+# khi cùng sửa 1 file. Nếu 2 người cùng sửa 1 trường, file sẽ có trường lặp -> giao diện báo ⚠️ để sửa lại.
+items/*.md merge=union
+docs/*.md merge=union

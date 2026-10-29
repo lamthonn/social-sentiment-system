@@ -1,0 +1,192 @@
+{
+  "project": "Nghiên cứu các kỹ thuật máy học hiện đại kết hợp đảm bảo an ninh an toàn ứng dụng trong phát triển thử nghiệm hệ thống thông tin hỗ trợ thu thập, lưu trữ tự động dữ liệu mạng xã hội để nhận diện và phân loại cảm xúc và xu hướng của người dùng",
+  "short_name": "Quản lý đề tài NCKH",
+  "members": ["Nam", "Lâm"],
+  "modules": ["Nghiệp vụ", "Thu thập", "Lưu trữ", "Tiền xử lý & Dataset", "Cảm xúc", "Xu hướng", "An ninh an toàn", "Hệ thống & Dashboard", "Thực nghiệm & Đánh giá", "Báo cáo & Thuyết minh"],
+  "priorities": ["Cao", "Trung bình", "Thấp"],
+  "research_questions": [
+    {"key": "CH1", "label": "Mô hình học máy nào tốt nhất cho nhận diện, phân loại cảm xúc trên dữ liệu MXH tiếng Việt so với baseline?"},
+    {"key": "CH2", "label": "Phát hiện và phân loại xu hướng người dùng theo thời gian từ luồng dữ liệu MXH thế nào cho hiệu quả?"},
+    {"key": "CH3", "label": "Kiến trúc thu thập, lưu trữ tự động nào bảo đảm hiệu năng, mở rộng, vận hành ổn định?"},
+    {"key": "CH4", "label": "Cơ chế an ninh an toàn nào vừa tuân thủ Luật 91/2025/QH15 vừa giữ độ chính xác chấp nhận được? Đánh đổi ra sao?"},
+    {"key": "CH5", "label": "Có xây dựng được hệ thống thử nghiệm tích hợp 4 thành phần trên không, hiệu quả thực nghiệm ra sao?"}
+  ],
+  "types": {
+    "doc": {
+      "prefix": "DOC", "label": "Tài liệu", "icon": "📘",
+      "statuses": [{"key": "draft", "label": "Bản nháp", "color": "amber"}, {"key": "stable", "label": "Đã thống nhất", "color": "green"}],
+      "fields": [{"key": "owner", "label": "Phụ trách", "kind": "member"}],
+      "template": "## Nội dung\n\n"
+    },
+    "task": {
+      "prefix": "T", "label": "Đầu việc", "icon": "✅",
+      "statuses": [
+        {"key": "todo", "label": "Chưa làm", "color": "gray"},
+        {"key": "doing", "label": "Đang làm", "color": "blue"},
+        {"key": "review", "label": "Chờ duyệt", "color": "amber"},
+        {"key": "done", "label": "Xong", "color": "green"},
+        {"key": "dropped", "label": "Bỏ", "color": "red"}
+      ],
+      "fields": [
+        {"key": "owner", "label": "Phụ trách", "kind": "member"},
+        {"key": "priority", "label": "Ưu tiên", "kind": "priority"},
+        {"key": "module", "label": "Mô-đun", "kind": "module"},
+        {"key": "ch", "label": "Câu hỏi NC", "kind": "ch"},
+        {"key": "links", "label": "Liên kết", "kind": "links"},
+        {"key": "tags", "label": "Nhãn", "kind": "list"}
+      ],
+      "template": "## Mô tả\n\n\n## Việc cần làm\n- [ ] \n\n## Kết quả / Bằng chứng\n\n"
+    },
+    "decision": {
+      "prefix": "D", "label": "Việc cần chốt", "icon": "⚖️",
+      "statuses": [
+        {"key": "open", "label": "Mở", "color": "gray"},
+        {"key": "discussing", "label": "Đang bàn", "color": "blue"},
+        {"key": "decided", "label": "Đã chốt", "color": "green"},
+        {"key": "cancelled", "label": "Hủy", "color": "red"}
+      ],
+      "fields": [
+        {"key": "owner", "label": "Người chốt", "kind": "member"},
+        {"key": "priority", "label": "Ưu tiên", "kind": "priority"},
+        {"key": "module", "label": "Mô-đun", "kind": "module"},
+        {"key": "ch", "label": "Câu hỏi NC", "kind": "ch"},
+        {"key": "decision", "label": "Kết luận ngắn", "kind": "text"},
+        {"key": "links", "label": "Liên kết", "kind": "links"}
+      ],
+      "template": "## Bối cảnh\n\n\n## Phương án\n### A.\n\n### B.\n\n## Đề xuất\n\n\n## Kết luận\n\n"
+    },
+    "question": {
+      "prefix": "Q", "label": "Câu hỏi khảo sát", "icon": "❓",
+      "statuses": [
+        {"key": "new", "label": "Chưa hỏi", "color": "gray"},
+        {"key": "asked", "label": "Đã hỏi", "color": "blue"},
+        {"key": "answered", "label": "Đã trả lời", "color": "green"},
+        {"key": "skipped", "label": "Bỏ qua", "color": "red"}
+      ],
+      "fields": [
+        {"key": "module", "label": "Mô-đun", "kind": "module"},
+        {"key": "ask_to", "label": "Hỏi ai", "kind": "select", "options": ["Nhóm tự chốt", "GV hướng dẫn", "Chuyên gia", "Người dùng thử"]},
+        {"key": "owner", "label": "Phụ trách hỏi", "kind": "member"},
+        {"key": "answer", "label": "Trả lời ngắn", "kind": "text"},
+        {"key": "links", "label": "Liên kết", "kind": "links"}
+      ],
+      "template": "## Câu hỏi\n\n\n## Lựa chọn gợi ý\n- \n\n## Trả lời\n\n"
+    },
+    "model": {
+      "prefix": "MODEL", "label": "Mô hình", "icon": "🧠",
+      "statuses": [
+        {"key": "candidate", "label": "Ứng viên", "color": "gray"},
+        {"key": "trying", "label": "Đang thử", "color": "blue"},
+        {"key": "selected", "label": "Được chọn", "color": "green"},
+        {"key": "rejected", "label": "Loại", "color": "red"}
+      ],
+      "fields": [
+        {"key": "task_kind", "label": "Bài toán", "kind": "select", "options": ["Cảm xúc", "Xu hướng", "Tiền xử lý"]},
+        {"key": "family", "label": "Nhóm", "kind": "select", "options": ["Baseline", "Học sâu", "Transformer", "LLM", "Chủ đề / Thống kê"]},
+        {"key": "resource", "label": "Tài nguyên", "kind": "text"},
+        {"key": "license", "label": "Giấy phép", "kind": "text"},
+        {"key": "metric", "label": "Kết quả tốt nhất", "kind": "text"},
+        {"key": "owner", "label": "Phụ trách", "kind": "member"},
+        {"key": "links", "label": "Liên kết", "kind": "links"}
+      ],
+      "template": "## Mô tả\n\n\n## Ưu điểm\n- \n\n## Nhược điểm\n- \n\n## Yêu cầu tài nguyên\n\n\n## Kết quả thực nghiệm\n\n"
+    },
+    "app": {
+      "prefix": "APP", "label": "Ứng dụng đề tài", "icon": "🎯",
+      "statuses": [
+        {"key": "proposed", "label": "Đề xuất", "color": "gray"},
+        {"key": "evaluating", "label": "Đang đánh giá", "color": "blue"},
+        {"key": "selected", "label": "Được chọn", "color": "green"},
+        {"key": "rejected", "label": "Loại", "color": "red"}
+      ],
+      "fields": [
+        {"key": "score_data", "label": "Dữ liệu sẵn có (1-5)", "kind": "score"},
+        {"key": "score_value", "label": "Giá trị thực tiễn (1-5)", "kind": "score"},
+        {"key": "score_fit", "label": "Khớp thuyết minh (1-5)", "kind": "score"},
+        {"key": "score_legal", "label": "An toàn pháp lý (1-5)", "kind": "score"},
+        {"key": "score_feasible", "label": "Khả năng làm xong (1-5)", "kind": "score"},
+        {"key": "owner", "label": "Phụ trách", "kind": "member"},
+        {"key": "links", "label": "Liên kết", "kind": "links"}
+      ],
+      "template": "## Mô tả ứng dụng\n\n\n## Người dùng / đơn vị hưởng lợi\n\n\n## Nguồn dữ liệu & từ khóa\n\n\n## Kết quả đầu ra mong muốn\n\n\n## Rủi ro\n\n"
+    },
+    "fr": {
+      "prefix": "FR", "label": "Yêu cầu chức năng", "icon": "🧩",
+      "statuses": [
+        {"key": "missing", "label": "Chưa có", "color": "gray"},
+        {"key": "partial", "label": "Một phần", "color": "amber"},
+        {"key": "done", "label": "Đã có", "color": "green"},
+        {"key": "out", "label": "Ngoài phạm vi", "color": "red"}
+      ],
+      "fields": [
+        {"key": "module", "label": "Mô-đun", "kind": "module"},
+        {"key": "priority", "label": "Ưu tiên", "kind": "priority"},
+        {"key": "ch", "label": "Câu hỏi NC", "kind": "ch"},
+        {"key": "links", "label": "Liên kết", "kind": "links"}
+      ],
+      "template": "## Mô tả\n\n\n## Tiêu chí chấp nhận\n- [ ] \n\n## Hiện trạng trong code\n\n"
+    },
+    "nfr": {
+      "prefix": "NFR", "label": "Yêu cầu phi chức năng", "icon": "📏",
+      "statuses": [
+        {"key": "missing", "label": "Chưa có", "color": "gray"},
+        {"key": "partial", "label": "Một phần", "color": "amber"},
+        {"key": "done", "label": "Đã có", "color": "green"},
+        {"key": "out", "label": "Ngoài phạm vi", "color": "red"}
+      ],
+      "fields": [
+        {"key": "module", "label": "Mô-đun", "kind": "module"},
+        {"key": "priority", "label": "Ưu tiên", "kind": "priority"},
+        {"key": "target", "label": "Chỉ tiêu", "kind": "text"},
+        {"key": "ch", "label": "Câu hỏi NC", "kind": "ch"},
+        {"key": "links", "label": "Liên kết", "kind": "links"}
+      ],
+      "template": "## Mô tả\n\n\n## Cách đo\n\n\n## Hiện trạng\n\n"
+    },
+    "risk": {
+      "prefix": "R", "label": "Rủi ro", "icon": "⚠️",
+      "statuses": [
+        {"key": "open", "label": "Mở", "color": "red"},
+        {"key": "mitigating", "label": "Đang xử lý", "color": "amber"},
+        {"key": "closed", "label": "Đã đóng", "color": "green"}
+      ],
+      "fields": [
+        {"key": "likelihood", "label": "Khả năng xảy ra", "kind": "select", "options": ["Thấp", "Trung bình", "Cao"]},
+        {"key": "impact", "label": "Mức ảnh hưởng", "kind": "select", "options": ["Thấp", "Trung bình", "Cao"]},
+        {"key": "owner", "label": "Theo dõi", "kind": "member"},
+        {"key": "links", "label": "Liên kết", "kind": "links"}
+      ],
+      "template": "## Mô tả\n\n\n## Ảnh hưởng\n\n\n## Cách giảm thiểu\n- [ ] \n"
+    },
+    "experiment": {
+      "prefix": "E", "label": "Thực nghiệm", "icon": "🧪",
+      "statuses": [
+        {"key": "planned", "label": "Dự kiến", "color": "gray"},
+        {"key": "running", "label": "Đang chạy", "color": "blue"},
+        {"key": "done", "label": "Xong", "color": "green"},
+        {"key": "failed", "label": "Hỏng / Hủy", "color": "red"}
+      ],
+      "fields": [
+        {"key": "model", "label": "Mô hình", "kind": "text"},
+        {"key": "dataset", "label": "Dataset", "kind": "text"},
+        {"key": "accuracy", "label": "Accuracy", "kind": "text"},
+        {"key": "macro_f1", "label": "Macro-F1", "kind": "text"},
+        {"key": "owner", "label": "Người chạy", "kind": "member"},
+        {"key": "links", "label": "Liên kết", "kind": "links"}
+      ],
+      "template": "## Mục tiêu\n\n\n## Thiết lập (dữ liệu, tham số, phần cứng)\n\n\n## Kết quả\n| Chỉ số | Giá trị |\n|---|---|\n| Accuracy | |\n| Macro-F1 | |\n\n## Nhận xét\n\n"
+    },
+    "tm": {
+      "prefix": "TM", "label": "Sửa thuyết minh", "icon": "📝",
+      "statuses": [{"key": "todo", "label": "Cần sửa", "color": "gray"}, {"key": "done", "label": "Đã sửa", "color": "green"}, {"key": "wontfix", "label": "Giữ nguyên", "color": "red"}],
+      "fields": [{"key": "owner", "label": "Phụ trách", "kind": "member"}, {"key": "links", "label": "Liên kết", "kind": "links"}],
+      "template": "## Vị trí trong thuyết minh\n\n\n## Vấn đề\n\n\n## Cách sửa\n\n"
+    },
+    "meeting": {
+      "prefix": "M", "label": "Biên bản họp", "icon": "🗓️",
+      "statuses": [{"key": "draft", "label": "Nháp", "color": "amber"}, {"key": "final", "label": "Đã chốt", "color": "green"}],
+      "fields": [{"key": "date", "label": "Ngày họp", "kind": "text"}, {"key": "participants", "label": "Người dự", "kind": "list"}, {"key": "links", "label": "Liên kết", "kind": "links"}],
+      "template": "## Nội dung\n\n\n## Đã quyết định\n- \n\n## Việc phát sinh\n- [ ] \n"
+    }
+  }
+}
