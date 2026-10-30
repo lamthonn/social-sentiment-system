@@ -36,7 +36,7 @@ QUY ƯỚC ĐỊNH DẠNG (công cụ `node tools/server.js` đọc/ghi theo đ�
 
 - **Loại đề tài:** KH-CN cấp trường (người học) — Trường ĐH Điện lực, Khoa Điện toán và Công nghệ số năng lượng.
 - **Nhóm thực hiện trên repo:** Nam, Lâm · GV hướng dẫn: ThS. Lê Thanh Trà.
-- **Điểm mới:** gộp thu thập – phân tích cảm xúc – phân tích xu hướng – an ninh an toàn thành một hệ thống liền mạch cho tiếng Việt, thay vì làm rời từng phần.
+- **Điểm mới:** gộp thu thập – phân tích cảm xúc – phân tích xu hướng – an ninh an toàn thành một hệ thống liền mạch cho tiếng Việt, thay vì làm rời từng phần
 
 **Nhật ký:**
 - [Nam · 2026-10-30 23:53] [Bình luận] fdf
