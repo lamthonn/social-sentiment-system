@@ -1,3 +1,0 @@
-# 2 người cùng sửa file rồi đồng bộ: giữ cả 2 phía thay vì báo xung đột.
-# Việc bị sửa trùng (2 dòng cùng mã) sẽ được giao diện cảnh báo để kiểm tra lại.
-QUAN_LY_DE_TAI.md merge=union

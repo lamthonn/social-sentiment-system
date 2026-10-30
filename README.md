@@ -5,6 +5,8 @@ Khung dự án (**Giai đoạn 0**) cho đề tài "Nghiên cứu các kỹ thu�
 Giai đoạn 0 dựng sẵn: cấu trúc thư mục, PostgreSQL qua Docker, tầng cấu hình, tầng CSDL (ORM), hàm ẩn danh dữ liệu, khung API (FastAPI) và frontend (React + Ant Design).
 
 > Hướng dẫn chạy chi tiết từng bước (kèm troubleshooting) xem tại **[HUONG_DAN_CHAY.md](HUONG_DAN_CHAY.md)**.
+>
+> Tình trạng dự án (nghiệp vụ, đầu việc, pipeline, model, thí nghiệm) nằm trong **[PROJECT.md](PROJECT.md)**. Công cụ xem/sửa/đồng bộ: `node tools/server.js`, xem [tools/README.md](tools/README.md).
 
 ## Yêu cầu
 
