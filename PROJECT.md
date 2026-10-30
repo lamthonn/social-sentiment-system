@@ -38,6 +38,9 @@ QUY ƯỚC ĐỊNH DẠNG (công cụ `node tools/server.js` đọc/ghi theo đ�
 - **Nhóm thực hiện trên repo:** Nam, Lâm · GV hướng dẫn: ThS. Lê Thanh Trà.
 - **Điểm mới:** gộp thu thập – phân tích cảm xúc – phân tích xu hướng – an ninh an toàn thành một hệ thống liền mạch cho tiếng Việt, thay vì làm rời từng phần.
 
+**Nhật ký:**
+- [Nam · 2026-10-30 23:53] [Bình luận] fdf
+
 ### TQ-02 Mục tiêu
 
 Đề tài phải trả lời được 5 câu hỏi nghiên cứu:
