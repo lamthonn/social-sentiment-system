@@ -13,7 +13,7 @@ from fastapi.responses import JSONResponse
 from sqlalchemy import select
 from starlette.middleware.base import BaseHTTPMiddleware
 
-from security.auth import audit, decode_token, role_at_least
+from security.auth import audit, decode_token, role_at_least, token_expired_only
 from storage.database import SessionLocal
 from storage.models import User
 
@@ -89,6 +89,9 @@ class AuthMiddleware(BaseHTTPMiddleware):
             header = request.headers.get("authorization", "")
             claims = decode_token(header[7:]) if header.lower().startswith("bearer ") else None
             if not claims:
+                if header:  # có gửi token nhưng không dùng được -> ghi lại; chỉ token sai chữ ký được tính là token giả (security/detect.py)
+                    action = "expired-token" if token_expired_only(header[7:]) else "invalid-token"
+                    audit(None, action, f"{request.method} {path}", client_ip(request), success=False)
                 return _with_headers(JSONResponse({"detail": "Chưa đăng nhập hoặc phiên đã hết hạn"}, status_code=401))
             with SessionLocal() as s:  # đọc lại từ DB để tài khoản bị khóa/đổi quyền có hiệu lực ngay
                 user = s.scalars(select(User).where(User.username == claims["sub"])).first()

@@ -14,6 +14,7 @@ from config.settings import settings
 from pipeline import DATASETS_DIR
 from pipeline.runlog import pipeline_run
 from preprocessing.text import PIPELINE_VERSION, clean_text, extract_hashtags
+from security.detect import ALERT_PREFIX, detect, load_events
 from storage.database import SessionLocal
 from storage.models import AnalysisResult, CleanPost, ModelRun, PipelineRun, RawPost, Topic, TopicDaily
 
@@ -193,6 +194,9 @@ def step_monitor(by: str = "cli") -> None:
         info["failed_runs_7d"] = failed
         if failed:
             alerts.append(f"{failed} lượt chạy pipeline lỗi trong 7 ngày")
+        sec = detect(load_events(s, now - timedelta(days=1)))
+        info["security_alerts_24h"] = [{"kind": a.kind, "key": a.key, "at": a.first_at.isoformat(timespec="seconds"), "count": a.count} for a in sec]
+        alerts += [f"{ALERT_PREFIX}{a.message} (lúc {a.first_at:%Y-%m-%d %H:%M})" for a in sec]
         info["alerts"] = alerts
         run.info.update(info)
         run.records_in = info["posts_7d"]

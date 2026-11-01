@@ -16,6 +16,7 @@ from sqlalchemy.orm import aliased
 from pipeline import DATA_DIR, ROOT
 from security.auth import (ROLES, audit, create_token, hash_password, login_blocked, record_login_failure,
                            reset_login_failures, validate_password_strength, verify_password)
+from security.detect import redact_for_role
 from storage.database import SessionLocal
 from storage.models import AnalysisResult, AuditLog, CleanPost, ModelRun, PipelineRun, RawPost, Topic, TopicDaily, User
 
@@ -173,7 +174,7 @@ def _usable(q):
 
 
 @router.get("/dashboard/summary")
-def dashboard(days: int = Query(30, ge=1, le=365), category: str | None = None):
+def dashboard(request: Request, days: int = Query(30, ge=1, le=365), category: str | None = None):
     with SessionLocal() as s:
         when = func.coalesce(RawPost.posted_at, RawPost.collected_at)
         since = datetime.utcnow() - timedelta(days=days)
@@ -212,7 +213,7 @@ def dashboard(days: int = Query(30, ge=1, le=365), category: str | None = None):
             "totals": totals, "distribution": dist, "series": series,
             "by_category": [{"category": c or "(không gắn)", "label": lab, "count": n} for c, lab, n in by_cat],
             "models": {t: ({"run_code": r.run_code, "model_name": r.model_name, "f1_macro": r.f1_macro} if r else None) for t, r in sel.items()},
-            "monitor": {"at": monitor.finished_at, **json.loads(monitor.message or "{}")} if monitor else None,
+            "monitor": {"at": monitor.finished_at, **redact_for_role(json.loads(monitor.message or "{}"), _user(request).get("role"))} if monitor else None,
             "categories": categories,
         }
 
@@ -339,17 +340,18 @@ class RunIn(BaseModel):
 
 
 @router.get("/pipeline/runs")
-def pipeline_runs(page: int = Query(1, ge=1), page_size: int = Query(30, ge=1, le=100), step: str | None = None):
+def pipeline_runs(request: Request, page: int = Query(1, ge=1), page_size: int = Query(30, ge=1, le=100), step: str | None = None):
     with SessionLocal() as s:
         q = select(PipelineRun)
         if step:
             q = q.where(PipelineRun.step.like(f"{step}%"))
         total = s.scalar(select(func.count()).select_from(q.subquery()))
         rows = s.scalars(q.order_by(PipelineRun.id.desc()).offset((page - 1) * page_size).limit(page_size)).all()
+        role = _user(request).get("role")
         return {"total": total, "running": sorted(k for k, p in _procs.items() if p.poll() is None),
                 "items": [{"id": r.id, "step": r.step, "status": r.status, "started_at": r.started_at, "finished_at": r.finished_at,
                            "records_in": r.records_in, "records_out": r.records_out, "triggered_by": r.triggered_by,
-                           "info": json.loads(r.message) if r.message and r.message.startswith("{") else r.message} for r in rows]}
+                           "info": redact_for_role(json.loads(r.message), role) if r.message and r.message.startswith("{") else r.message} for r in rows]}
 
 
 @router.post("/pipeline/run", status_code=202)

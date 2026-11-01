@@ -1,0 +1,285 @@
+{
+  "name": "security_eval",
+  "title": "Đánh giá cơ chế an ninh: phát hiện, bảo vệ, ghi nhật ký, cảnh báo",
+  "question": "CH4 - đánh giá các cơ chế an ninh, tỉ lệ False Positive / False Negative (T-35)",
+  "description": "Bộ phát hiện luật (security/detect.py), cửa sổ trượt 10 phút, ngưỡng: đăng nhập sai 5, số tài khoản bị thử 5, bị từ chối quyền 5, token giả 10, xem dữ liệu chi tiết 100; cửa sổ 24 giờ: đăng nhập sai 20, xem dữ liệu chi tiết 300. Mô phỏng: 30 người dùng thật dùng chung 3 IP, 7 ngày, 5 seed; mỗi kịch bản 10 đợt/seed. Dữ liệu mô phỏng không thay được dữ liệu vận hành thật - ngưỡng cần hiệu chỉnh lại khi có nhật ký thật.",
+  "tables": [
+    {
+      "title": "Tỉ lệ phát hiện theo kịch bản (mô phỏng, bộ luật đầy đủ)",
+      "columns": [
+        "Kịch bản tấn công",
+        "Số đợt",
+        "Phát hiện",
+        "Tỉ lệ phát hiện",
+        "Tỉ lệ bỏ sót (FN)",
+        "Sự kiện/đợt (TB)",
+        "Phát hiện sau ~ sự kiện"
+      ],
+      "rows": [
+        {
+          "Kịch bản tấn công": "Dò mật khẩu nhanh",
+          "Số đợt": 50,
+          "Phát hiện": 50,
+          "Tỉ lệ phát hiện": "100%",
+          "Tỉ lệ bỏ sót (FN)": "0%",
+          "Sự kiện/đợt (TB)": 102,
+          "Phát hiện sau ~ sự kiện": 5
+        },
+        {
+          "Kịch bản tấn công": "Dò mật khẩu chậm (né ngưỡng)",
+          "Số đợt": 50,
+          "Phát hiện": 50,
+          "Tỉ lệ phát hiện": "100%",
+          "Tỉ lệ bỏ sót (FN)": "0%",
+          "Sự kiện/đợt (TB)": 41,
+          "Phát hiện sau ~ sự kiện": 20
+        },
+        {
+          "Kịch bản tấn công": "Thử mật khẩu trên nhiều tài khoản",
+          "Số đợt": 50,
+          "Phát hiện": 50,
+          "Tỉ lệ phát hiện": "100%",
+          "Tỉ lệ bỏ sót (FN)": "0%",
+          "Sự kiện/đợt (TB)": 18,
+          "Phát hiện sau ~ sự kiện": 5
+        },
+        {
+          "Kịch bản tấn công": "Tài khoản bị chiếm dò quyền admin",
+          "Số đợt": 50,
+          "Phát hiện": 50,
+          "Tỉ lệ phát hiện": "100%",
+          "Tỉ lệ bỏ sót (FN)": "0%",
+          "Sự kiện/đợt (TB)": 16,
+          "Phát hiện sau ~ sự kiện": 5
+        },
+        {
+          "Kịch bản tấn công": "Gửi token giả",
+          "Số đợt": 50,
+          "Phát hiện": 50,
+          "Tỉ lệ phát hiện": "100%",
+          "Tỉ lệ bỏ sót (FN)": "0%",
+          "Sự kiện/đợt (TB)": 58,
+          "Phát hiện sau ~ sự kiện": 10
+        },
+        {
+          "Kịch bản tấn công": "Tải dữ liệu hàng loạt nhanh",
+          "Số đợt": 50,
+          "Phát hiện": 50,
+          "Tỉ lệ phát hiện": "100%",
+          "Tỉ lệ bỏ sót (FN)": "0%",
+          "Sự kiện/đợt (TB)": 589,
+          "Phát hiện sau ~ sự kiện": 100
+        },
+        {
+          "Kịch bản tấn công": "Tải dữ liệu hàng loạt chậm (né ngưỡng)",
+          "Số đợt": 50,
+          "Phát hiện": 39,
+          "Tỉ lệ phát hiện": "78%",
+          "Tỉ lệ bỏ sót (FN)": "22%",
+          "Sự kiện/đợt (TB)": 411,
+          "Phát hiện sau ~ sự kiện": 300
+        }
+      ]
+    },
+    {
+      "title": "So sánh bộ luật",
+      "columns": [
+        "Kịch bản tấn công",
+        "Bản đầu: chỉ 10 phút",
+        "+ cửa sổ 24 giờ",
+        "+ tách token hết hạn"
+      ],
+      "rows": [
+        {
+          "Kịch bản tấn công": "Dò mật khẩu nhanh",
+          "Bản đầu: chỉ 10 phút": "100%",
+          "+ cửa sổ 24 giờ": "100%",
+          "+ tách token hết hạn": "100%"
+        },
+        {
+          "Kịch bản tấn công": "Dò mật khẩu chậm (né ngưỡng)",
+          "Bản đầu: chỉ 10 phút": "0%",
+          "+ cửa sổ 24 giờ": "100%",
+          "+ tách token hết hạn": "100%"
+        },
+        {
+          "Kịch bản tấn công": "Thử mật khẩu trên nhiều tài khoản",
+          "Bản đầu: chỉ 10 phút": "100%",
+          "+ cửa sổ 24 giờ": "100%",
+          "+ tách token hết hạn": "100%"
+        },
+        {
+          "Kịch bản tấn công": "Tài khoản bị chiếm dò quyền admin",
+          "Bản đầu: chỉ 10 phút": "100%",
+          "+ cửa sổ 24 giờ": "100%",
+          "+ tách token hết hạn": "100%"
+        },
+        {
+          "Kịch bản tấn công": "Gửi token giả",
+          "Bản đầu: chỉ 10 phút": "100%",
+          "+ cửa sổ 24 giờ": "100%",
+          "+ tách token hết hạn": "100%"
+        },
+        {
+          "Kịch bản tấn công": "Tải dữ liệu hàng loạt nhanh",
+          "Bản đầu: chỉ 10 phút": "100%",
+          "+ cửa sổ 24 giờ": "100%",
+          "+ tách token hết hạn": "100%"
+        },
+        {
+          "Kịch bản tấn công": "Tải dữ liệu hàng loạt chậm (né ngưỡng)",
+          "Bản đầu: chỉ 10 phút": "0%",
+          "+ cửa sổ 24 giờ": "78%",
+          "+ tách token hết hạn": "78%"
+        },
+        {
+          "Kịch bản tấn công": "Cảnh báo nhầm / tuần",
+          "Bản đầu: chỉ 10 phút": 0.2,
+          "+ cửa sổ 24 giờ": 0.2,
+          "+ tách token hết hạn": 0.0
+        }
+      ]
+    },
+    {
+      "title": "Đánh đổi theo ngưỡng truy xuất hàng loạt",
+      "columns": [
+        "Ngưỡng (lần xem / 10 phút)",
+        "Phát hiện tải nhanh",
+        "Phát hiện tải chậm",
+        "Cảnh báo nhầm / tuần"
+      ],
+      "rows": [
+        {
+          "Ngưỡng (lần xem / 10 phút)": 40,
+          "Phát hiện tải nhanh": "100%",
+          "Phát hiện tải chậm": "78%",
+          "Cảnh báo nhầm / tuần": 8.2
+        },
+        {
+          "Ngưỡng (lần xem / 10 phút)": 60,
+          "Phát hiện tải nhanh": "100%",
+          "Phát hiện tải chậm": "78%",
+          "Cảnh báo nhầm / tuần": 4.2
+        },
+        {
+          "Ngưỡng (lần xem / 10 phút)": 80,
+          "Phát hiện tải nhanh": "100%",
+          "Phát hiện tải chậm": "78%",
+          "Cảnh báo nhầm / tuần": 0.0
+        },
+        {
+          "Ngưỡng (lần xem / 10 phút)": 100,
+          "Phát hiện tải nhanh": "100%",
+          "Phát hiện tải chậm": "78%",
+          "Cảnh báo nhầm / tuần": 0.0
+        },
+        {
+          "Ngưỡng (lần xem / 10 phút)": 150,
+          "Phát hiện tải nhanh": "96%",
+          "Phát hiện tải chậm": "78%",
+          "Cảnh báo nhầm / tuần": 0.0
+        },
+        {
+          "Ngưỡng (lần xem / 10 phút)": 200,
+          "Phát hiện tải nhanh": "92%",
+          "Phát hiện tải chậm": "78%",
+          "Cảnh báo nhầm / tuần": 0.0
+        }
+      ]
+    },
+    {
+      "title": "Kiểm thử đầu-cuối trên API",
+      "columns": [
+        "Kịch bản",
+        "Phản hồi",
+        "Bị chặn",
+        "Ghi nhật ký",
+        "Cảnh báo"
+      ],
+      "rows": [
+        {
+          "Kịch bản": "Dò mật khẩu 8 lần",
+          "Phản hồi": "401, 429",
+          "Bị chặn": "Có",
+          "Ghi nhật ký": "Có (8 dòng)",
+          "Cảnh báo": "Dò mật khẩu một tài khoản"
+        },
+        {
+          "Kịch bản": "SQL injection ở ô đăng nhập",
+          "Phản hồi": "401",
+          "Bị chặn": "Có",
+          "Ghi nhật ký": "Có (1 dòng)",
+          "Cảnh báo": "Không cần"
+        },
+        {
+          "Kịch bản": "Thử mật khẩu trên 6 tài khoản",
+          "Phản hồi": "401",
+          "Bị chặn": "Có",
+          "Ghi nhật ký": "Có (6 dòng)",
+          "Cảnh báo": "Thử mật khẩu trên nhiều tài khoản"
+        },
+        {
+          "Kịch bản": "Viewer gọi chức năng admin 6 lần",
+          "Phản hồi": "403",
+          "Bị chặn": "Có",
+          "Ghi nhật ký": "Có (6 dòng)",
+          "Cảnh báo": "Dò quyền (gọi chức năng không được phép)"
+        },
+        {
+          "Kịch bản": "Token giả 12 lần",
+          "Phản hồi": "401",
+          "Bị chặn": "Có",
+          "Ghi nhật ký": "Có (12 dòng)",
+          "Cảnh báo": "Token giả hoặc hết hạn lặp lại"
+        },
+        {
+          "Kịch bản": "Token hết hạn 12 lần (người dùng thật hết phiên)",
+          "Phản hồi": "401",
+          "Bị chặn": "Có",
+          "Ghi nhật ký": "Có (12 dòng)",
+          "Cảnh báo": "Không cần"
+        },
+        {
+          "Kịch bản": "Analyst tải 110 trang dữ liệu liên tục",
+          "Phản hồi": "200",
+          "Bị chặn": "Không",
+          "Ghi nhật ký": "Có (110 dòng)",
+          "Cảnh báo": "Truy xuất dữ liệu hàng loạt"
+        },
+        {
+          "Kịch bản": "Gửi dồn 30 yêu cầu (ngưỡng thử 20/phút)",
+          "Phản hồi": "429",
+          "Bị chặn": "Có",
+          "Ghi nhật ký": "Có (10 dòng)",
+          "Cảnh báo": "Vượt giới hạn tần suất"
+        }
+      ]
+    },
+    {
+      "title": "Các cảnh báo nhầm (mô phỏng)",
+      "columns": [
+        "Seed",
+        "Loại cảnh báo",
+        "Đối tượng",
+        "Số sự kiện"
+      ],
+      "rows": []
+    }
+  ],
+  "findings": [
+    "Cảnh báo nhầm trên người dùng bình thường: 0 cảnh báo / 5 tuần mô phỏng (0.0/tuần, trên 5628 sự kiện bình thường mỗi tuần).",
+    "Trước khi tách, có 1 cảnh báo token giả nhầm: nhiều người dùng chung một IP (NAT mạng trường) hết phiên gần cùng lúc. Middleware nay ghi riêng token đúng chữ ký nhưng hết hạn (expired-token), chỉ token sai chữ ký mới được tính là token giả.",
+    "'Tải dữ liệu hàng loạt chậm (né ngưỡng)' vẫn bị bỏ sót 22%: kẻ tấn công đi dưới cả ngưỡng 10 phút lẫn 24 giờ. Hướng khắc phục: phát hiện bất thường theo hồ sơ từng người dùng (so với mức dùng thường ngày của chính họ).",
+    "So với bản đầu, bộ luật hiện tại cải thiện: Dò mật khẩu chậm (né ngưỡng) 0% -> 100%; Tải dữ liệu hàng loạt chậm (né ngưỡng) 0% -> 78%; cảnh báo nhầm 0.2 -> 0.0 mỗi tuần.",
+    "Ngưỡng truy xuất hàng loạt là đánh đổi giữa bỏ sót và báo nhầm (người dùng thật đôi khi lật trang nhanh): 40: bắt 100% tải nhanh, 8.2 nhầm/tuần; 60: bắt 100% tải nhanh, 4.2 nhầm/tuần; 80: bắt 100% tải nhanh, 0.0 nhầm/tuần; 100: bắt 100% tải nhanh, 0.0 nhầm/tuần; 150: bắt 96% tải nhanh, 0.0 nhầm/tuần; 200: bắt 92% tải nhanh, 0.0 nhầm/tuần. Ngưỡng mặc định 100 được chọn từ chính bảng này nên kết quả ở ngưỡng đó là lạc quan; cần hiệu chỉnh lại theo nhật ký vận hành thật.",
+    "Kiểm thử đầu-cuối: mọi kịch bản đều bị chặn hoặc ghi nhật ký và có cảnh báo khi cần.",
+    "Truy xuất dữ liệu hàng loạt bằng tài khoản hợp lệ không bị chặn tức thời (chỉ cảnh báo) - đây là chủ đích để không cản người dùng thật; cần người quản trị xem cảnh báo và khóa tài khoản."
+  ],
+  "created_at": "2026-11-01T22:22:49",
+  "env": {
+    "python": "3.14.7",
+    "platform": "Windows-11-10.0.22621-SP0",
+    "torch": "2.14.1+cu126",
+    "gpu": "NVIDIA GeForce GTX 1050 Ti"
+  }
+}

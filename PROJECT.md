@@ -539,6 +539,7 @@ Các điểm cần chốt trước khi đi sâu (theo dõi ở T-38, chốt xong
 **Nhật ký:**
 - [Nam · 2026-11-01 15:01] [Kết quả] (Claude thực hiện trên máy của Nam) Mọi route cần đăng nhập + vai trò, kiểm tra dữ liệu vào bằng Pydantic, CORS giới hạn, chặn dò mật khẩu; còn thiếu rate limit chung và HTTPS
 - [Nam · 2026-11-01 20:10] [Kết quả] (Claude thực hiện trên máy của Nam) Đã thêm giới hạn tần suất theo IP (600/phút, đăng nhập 30, chạy pipeline 10) và header bảo mật; còn HTTPS khi triển khai
+- [Nam · 2026-11-01 22:36] [Bình luận] (Claude thực hiện trên máy của Nam) Middleware ghi nhật ký cả yêu cầu mang token không dùng được, tách token sai chữ ký (invalid-token, tính là tấn công) với token hết hạn (expired-token, người dùng thật hết phiên) - giảm cảnh báo nhầm khi nhiều người chung IP. Vẫn còn HTTPS.
 
 ### T-28 Mã hóa và bảo vệ dữ liệu
 - **Mô tả:** Mã hóa kết nối và dữ liệu lưu, quản lý bí mật, sao lưu.
@@ -618,12 +619,15 @@ Các điểm cần chốt trước khi đi sâu (theo dõi ở T-38, chốt xong
 - **Mô tả:** Kịch bản phát hiện → bảo vệ → ghi nhật ký → cảnh báo; tỉ lệ False Positive/Negative. Cần phân công.
 - **Người phụ trách:** 
 - **Giai đoạn:** GD-10
-- **Trạng thái:** Đang làm
+- **Trạng thái:** Hoàn thành
 - **Liên kết:** MT7, CH4
 
 **Nhật ký:**
 - [Nam · 2026-11-01 15:01] [Kết quả] (Claude thực hiện trên máy của Nam) 16 kiểm thử an ninh API đều đạt (chưa đăng nhập, sai vai trò, token giả, dò mật khẩu, route chưa khai báo); chưa đo False Positive/Negative
 - [Nam · 2026-11-01 20:10] [Kết quả] (Claude thực hiện trên máy của Nam) Thêm 4 kiểm thử header/giới hạn tần suất (đạt); thực nghiệm đầu độc + đối kháng (T-41, T-45); chưa đo False Positive/Negative trên lưu lượng thật
+- [Nam · 2026-11-01 22:36] [Kết quả] (Claude thực hiện trên máy của Nam) Bộ phát hiện security/detect.py (luật cửa sổ 10 phút + 24 giờ trên audit_logs), chạy trong bước monitor; cảnh báo hiện ở Tổng quan, chi tiết chỉ admin xem. Mô phỏng 5 tuần nhật ký (30 người dùng thật chung 3 IP + 7 kiểu tấn công, 50 đợt mỗi kiểu): Dò mật khẩu nhanh 100%; Dò mật khẩu chậm (né ngưỡng) 100%; Thử mật khẩu trên nhiều tài khoản 100%; Tài khoản bị chiếm dò quyền admin 100%; Gửi token giả 100%; Tải dữ liệu hàng loạt nhanh 100%; Tải dữ liệu hàng loạt chậm (né ngưỡng) 78%. Cảnh báo nhầm/tuần: Bản đầu: chỉ 10 phút 0.2, + cửa sổ 24 giờ 0.2, + tách token hết hạn 0.
+- [Nam · 2026-11-01 22:36] [Kết quả] (Claude thực hiện trên máy của Nam) Kiểm thử đầu-cuối trên API (8 kịch bản: dò mật khẩu, SQL injection, thử nhiều tài khoản, dò quyền, token giả, token hết hạn, tải dữ liệu hàng loạt, vượt tần suất): tất cả đều bị chặn hoặc ghi nhật ký, và có cảnh báo khi cần. Tải hàng loạt bằng tài khoản hợp lệ chỉ cảnh báo, không chặn (chủ đích).
+- [Nam · 2026-11-01 22:36] [Bình luận] (Claude thực hiện trên máy của Nam) Hạn chế: dữ liệu là mô phỏng; ngưỡng truy xuất hàng loạt (100 lần/10 phút) chọn từ bảng quét ngưỡng của chính mô phỏng nên kết quả lạc quan. Tải chậm dưới cả hai ngưỡng vẫn lọt 22% - hướng phát triển: phát hiện bất thường theo hồ sơ từng người dùng. Chi tiết: webapp > Mô hình > Thực nghiệm bổ sung.
 
 ### T-36 Tổng hợp kết quả và viết báo cáo tổng kết
 - **Mô tả:** Báo cáo tổng kết; đánh giá mức độ đạt mục tiêu; phân tích hạn chế.
@@ -737,11 +741,13 @@ Các điểm cần chốt trước khi đi sâu (theo dõi ở T-38, chốt xong
 - **Mô tả:** Tùy chọn theo QD-06: chỉ làm nếu còn thời gian; mô phỏng nhiều bên trên một máy (M-20).
 - **Người phụ trách:** Lâm
 - **Giai đoạn:** GD-08
-- **Trạng thái:** Chưa bắt đầu
+- **Trạng thái:** Hoàn thành
 - **Liên kết:** MT5, CH4, M-20
 
 **Nhật ký:**
 - [Nam · 2026-11-01 20:10] [Vướng mắc] (Claude thực hiện trên máy của Nam) Chưa làm: DP-SGD toàn bộ Transformer và học liên kết cần nhiều bộ nhớ hơn GPU 4GB hiện có
+- [Nam · 2026-11-01 22:36] [Kết quả] (Claude thực hiện trên máy của Nam) experiments/federated.py: FedAvg 5 bên mô phỏng trên một máy, 40 vòng, lớp tuyến tính trên đặc trưng ViSoBERT gốc đóng băng; chia dữ liệu IID và Non-IID (Dirichlet α = 1; 0.3; 0.1), 3 seed. Quan điểm (VSFC): tập trung 0.7743; FedAvg IID 0.7522; FedAvg lệch nhãn α=0.1 0.6652 (mỗi bên tự học chỉ 0.3194). Cảm xúc (VSMEC): tập trung 0.6182; FedAvg IID 0.5969; FedAvg lệch nhãn α=0.1 0.445 (mỗi bên tự học chỉ 0.1831).
+- [Nam · 2026-11-01 22:36] [Bình luận] (Claude thực hiện trên máy của Nam) Nhận xét: dữ liệu càng lệch giữa các bên thì học liên kết càng kém tập trung, nhưng vẫn hơn hẳn mỗi bên tự học. Sau 40 vòng chưa hội tụ hẳn. Học liên kết toàn bộ Transformer và kết hợp DP / tổng hợp an toàn để ở hướng phát triển (GPU 4GB).
 
 ### T-49 Cập nhật thuyết minh theo các quyết định đã chốt
 - **Mô tả:** Sửa mục 6.6 (thêm cảm xúc 7 nhãn — QD-04), mục 6.7 (định nghĩa xu hướng — QD-05), mục 7 (thêm nội dung differential privacy — QD-06).
@@ -1115,10 +1121,13 @@ Bảng đã tạo nhưng chưa có thành phần nào ghi vào.
 - [Nam · 2026-11-01 20:10] [Bình luận] (Claude thực hiện trên máy của Nam) Phiên bản DP cho lớp phân loại trên đặc trưng ViSoBERT đóng băng: quan điểm F1 0.7522 (không DP) -> 0.6637 (ε=8) -> 0.6058 (ε=1)
 
 ### M-20 Học liên kết mô phỏng (federated learning)
-- **Loại:** Transformer
-- **Bài toán phù hợp:** BT-01
+- **Loại:** Học liên kết (FedAvg) trên lớp phân loại, đặc trưng Transformer đóng băng
+- **Bài toán phù hợp:** BT-01, BT-03
 - **Lý do chọn:** Nêu trong MT5; chỉ mô phỏng nhiều bên trên một máy, tùy chọn (QD-06)
-- **Trạng thái:** Đề xuất
+- **Trạng thái:** Đã đánh giá
+
+**Nhật ký:**
+- [Nam · 2026-11-01 22:36] [Kết quả] (Claude thực hiện trên máy của Nam) Quan điểm (VSFC): tập trung 0.7743; FedAvg IID 0.7522; FedAvg lệch nhãn α=0.1 0.6652 (mỗi bên tự học chỉ 0.3194). Cảm xúc (VSMEC): tập trung 0.6182; FedAvg IID 0.5969; FedAvg lệch nhãn α=0.1 0.445 (mỗi bên tự học chỉ 0.1831)
 
 ### M-21 TF-IDF + NMF (gom chủ đề) và luật phân loại xu hướng
 - **Loại:** Baseline cổ điển

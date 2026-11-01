@@ -54,6 +54,8 @@ experiments:  # thực nghiệm bổ sung -> data/experiments/*.json (xem ở we
 	python -m experiments.robustness
 	python -m experiments.llm
 	python -m experiments.perf
+	python -m experiments.federated
+	python -m experiments.security_eval
 
 backup:  # pg_dump -> data/backups/ (giữ 14 bản mới nhất)
 	python -m storage.backup

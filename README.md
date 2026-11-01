@@ -65,7 +65,7 @@ make datasets         # tải + làm sạch UIT-VSFC (quan điểm 3 lớp) và 
 make train-baselines  # TF-IDF + LR/SVM cho cả 2 bài toán (vài chục giây mỗi mô hình)
 make train-visobert   # fine-tune ViSoBERT (cần GPU NVIDIA)
 make train-more       # BiLSTM + PhoBERT-base-v2 (PhoBERT cần GPU, tách từ bằng underthesea)
-make experiments      # thực nghiệm bổ sung: đầu độc dữ liệu, gom chủ đề, DP-SGD, độ bền, LLM, hiệu năng
+make experiments      # thực nghiệm bổ sung: đầu độc dữ liệu, gom chủ đề, DP-SGD, học liên kết, độ bền, LLM, hiệu năng, đánh giá an ninh
 make backup           # sao lưu CSDL vào data/backups/
 make pipeline         # 1 lượt: thu thập -> làm sạch -> dự đoán -> xu hướng -> giám sát
 make test             # kiểm thử tiền xử lý
