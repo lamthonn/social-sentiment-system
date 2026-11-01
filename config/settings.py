@@ -35,6 +35,10 @@ class Settings(BaseSettings):
     tiktok_client_key: str = ""
     tiktok_client_secret: str = ""
 
+    # Webapp: khóa ký JWT (để trống -> sinh ngẫu nhiên mỗi lần chạy API, đăng nhập lại sau restart)
+    jwt_secret: str = ""
+    jwt_expire_minutes: int = 480
+
     @property
     def database_url(self) -> str:
         return (

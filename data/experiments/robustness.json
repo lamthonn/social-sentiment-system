@@ -1,0 +1,221 @@
+{
+  "name": "robustness",
+  "title": "Độ bền trước cách viết MXH và nhiễu đối kháng",
+  "question": "CH1, CH4 - phân tích lỗi và tấn công đối kháng (T-41, T-45)",
+  "description": "Biến đổi câu gốc của tập test rồi cho qua đúng chuỗi làm sạch + mô hình của pipeline; số trong bảng là F1-macro. Cột 'tắt CL-04' bỏ qua bước chuẩn hóa teencode để đo giá trị của bước này. Hạn chế: 'Teencode hóa' chỉ dùng các từ có sẵn trong từ điển CL-04 nên bước làm sạch khôi phục được hoàn toàn - cột này là mức trần; teencode ngoài từ điển (viết tắt mới, chơi chữ) chưa được đo.",
+  "tables": [
+    {
+      "title": "F1-macro theo kiểu biến đổi đầu vào",
+      "columns": [
+        "Bài toán",
+        "Mô hình",
+        "Gốc",
+        "Bỏ dấu",
+        "Teencode hóa",
+        "Teencode hóa, không chuẩn hóa (tắt CL-04)",
+        "Bỏ emoji",
+        "Lỗi gõ 10% từ"
+      ],
+      "rows": [
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Mô hình": "PhoBERT-base-v2 (vinai/phobert-base-v2)",
+          "Gốc": 0.8314,
+          "Bỏ dấu": 0.599,
+          "Teencode hóa": 0.8314,
+          "Teencode hóa, không chuẩn hóa (tắt CL-04)": 0.8288,
+          "Bỏ emoji": 0.8314,
+          "Lỗi gõ 10% từ": 0.8204
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Mô hình": "BiLSTM",
+          "Gốc": 0.7566,
+          "Bỏ dấu": 0.3776,
+          "Teencode hóa": 0.7566,
+          "Teencode hóa, không chuẩn hóa (tắt CL-04)": 0.7066,
+          "Bỏ emoji": 0.7566,
+          "Lỗi gõ 10% từ": 0.744
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Mô hình": "ViSoBERT (uitnlp/visobert)",
+          "Gốc": 0.8089,
+          "Bỏ dấu": 0.7118,
+          "Teencode hóa": 0.8089,
+          "Teencode hóa, không chuẩn hóa (tắt CL-04)": 0.8023,
+          "Bỏ emoji": 0.8089,
+          "Lỗi gõ 10% từ": 0.7995
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Mô hình": "TF-IDF + Logistic Regression",
+          "Gốc": 0.7632,
+          "Bỏ dấu": 0.4292,
+          "Teencode hóa": 0.7632,
+          "Teencode hóa, không chuẩn hóa (tắt CL-04)": 0.7203,
+          "Bỏ emoji": 0.7632,
+          "Lỗi gõ 10% từ": 0.7524
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Mô hình": "PhoBERT-base-v2 (vinai/phobert-base-v2)",
+          "Gốc": 0.5896,
+          "Bỏ dấu": 0.2754,
+          "Teencode hóa": 0.5896,
+          "Teencode hóa, không chuẩn hóa (tắt CL-04)": 0.5693,
+          "Bỏ emoji": 0.5838,
+          "Lỗi gõ 10% từ": 0.5741
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Mô hình": "BiLSTM",
+          "Gốc": 0.5026,
+          "Bỏ dấu": 0.2315,
+          "Teencode hóa": 0.5026,
+          "Teencode hóa, không chuẩn hóa (tắt CL-04)": 0.481,
+          "Bỏ emoji": 0.4758,
+          "Lỗi gõ 10% từ": 0.492
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Mô hình": "ViSoBERT (uitnlp/visobert)",
+          "Gốc": 0.665,
+          "Bỏ dấu": 0.4033,
+          "Teencode hóa": 0.665,
+          "Teencode hóa, không chuẩn hóa (tắt CL-04)": 0.6581,
+          "Bỏ emoji": 0.6553,
+          "Lỗi gõ 10% từ": 0.6623
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Mô hình": "TF-IDF + Logistic Regression",
+          "Gốc": 0.5954,
+          "Bỏ dấu": 0.2996,
+          "Teencode hóa": 0.5954,
+          "Teencode hóa, không chuẩn hóa (tắt CL-04)": 0.5605,
+          "Bỏ emoji": 0.575,
+          "Lỗi gõ 10% từ": 0.5951
+        }
+      ]
+    },
+    {
+      "title": "Phân tích lỗi theo nhóm câu (đầu vào gốc)",
+      "columns": [
+        "Bài toán",
+        "Mô hình",
+        "Nhóm câu",
+        "Số câu",
+        "F1-macro"
+      ],
+      "rows": [
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Mô hình": "PhoBERT-base-v2 (vinai/phobert-base-v2)",
+          "Nhóm câu": "không emoji",
+          "Số câu": 3166,
+          "F1-macro": 0.8314
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Mô hình": "BiLSTM",
+          "Nhóm câu": "không emoji",
+          "Số câu": 3166,
+          "F1-macro": 0.7566
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Mô hình": "ViSoBERT (uitnlp/visobert)",
+          "Nhóm câu": "không emoji",
+          "Số câu": 3166,
+          "F1-macro": 0.8089
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Mô hình": "TF-IDF + Logistic Regression",
+          "Nhóm câu": "không emoji",
+          "Số câu": 3166,
+          "F1-macro": 0.7632
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Mô hình": "PhoBERT-base-v2 (vinai/phobert-base-v2)",
+          "Nhóm câu": "có emoji",
+          "Số câu": 132,
+          "F1-macro": 0.5582
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Mô hình": "PhoBERT-base-v2 (vinai/phobert-base-v2)",
+          "Nhóm câu": "không emoji",
+          "Số câu": 561,
+          "F1-macro": 0.5963
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Mô hình": "BiLSTM",
+          "Nhóm câu": "có emoji",
+          "Số câu": 132,
+          "F1-macro": 0.4732
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Mô hình": "BiLSTM",
+          "Nhóm câu": "không emoji",
+          "Số câu": 561,
+          "F1-macro": 0.4977
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Mô hình": "ViSoBERT (uitnlp/visobert)",
+          "Nhóm câu": "có emoji",
+          "Số câu": 132,
+          "F1-macro": 0.558
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Mô hình": "ViSoBERT (uitnlp/visobert)",
+          "Nhóm câu": "không emoji",
+          "Số câu": 561,
+          "F1-macro": 0.6704
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Mô hình": "TF-IDF + Logistic Regression",
+          "Nhóm câu": "có emoji",
+          "Số câu": 132,
+          "F1-macro": 0.5321
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Mô hình": "TF-IDF + Logistic Regression",
+          "Nhóm câu": "không emoji",
+          "Số câu": 561,
+          "F1-macro": 0.5918
+        }
+      ]
+    }
+  ],
+  "findings": [
+    "Quan điểm (VSFC) – PhoBERT-base-v2 (vinai/phobert-base-v2): giảm mạnh nhất khi 'Bỏ dấu' (−0.232 F1); bước chuẩn hóa teencode giữ được +0.003 F1.",
+    "Quan điểm (VSFC) – BiLSTM: giảm mạnh nhất khi 'Bỏ dấu' (−0.379 F1); bước chuẩn hóa teencode giữ được +0.050 F1.",
+    "Quan điểm (VSFC) – ViSoBERT (uitnlp/visobert): giảm mạnh nhất khi 'Bỏ dấu' (−0.097 F1); bước chuẩn hóa teencode giữ được +0.007 F1.",
+    "Quan điểm (VSFC) – TF-IDF + Logistic Regression: giảm mạnh nhất khi 'Bỏ dấu' (−0.334 F1); bước chuẩn hóa teencode giữ được +0.043 F1.",
+    "Cảm xúc (VSMEC) – PhoBERT-base-v2 (vinai/phobert-base-v2): giảm mạnh nhất khi 'Bỏ dấu' (−0.314 F1); bước chuẩn hóa teencode giữ được +0.020 F1.",
+    "Cảm xúc (VSMEC) – BiLSTM: giảm mạnh nhất khi 'Bỏ dấu' (−0.271 F1); bước chuẩn hóa teencode giữ được +0.022 F1.",
+    "Cảm xúc (VSMEC) – ViSoBERT (uitnlp/visobert): giảm mạnh nhất khi 'Bỏ dấu' (−0.262 F1); bước chuẩn hóa teencode giữ được +0.007 F1.",
+    "Cảm xúc (VSMEC) – TF-IDF + Logistic Regression: giảm mạnh nhất khi 'Bỏ dấu' (−0.296 F1); bước chuẩn hóa teencode giữ được +0.035 F1.",
+    "Bỏ dấu là điểm yếu lớn nhất của mọi mô hình (F1 giảm 0.10–0.38); bền nhất: ViSoBERT (uitnlp/visobert) ở Quan điểm (VSFC) (0.8089 -> 0.7118). Đề xuất: thêm bước khôi phục dấu hoặc tăng cường dữ liệu không dấu khi huấn luyện.",
+    "Cảm xúc – ViSoBERT (uitnlp/visobert): câu có emoji F1 0.558 so với không emoji 0.6704.",
+    "Cảm xúc – TF-IDF + Logistic Regression: câu có emoji F1 0.5321 so với không emoji 0.5918.",
+    "Cảm xúc – BiLSTM: câu có emoji F1 0.4732 so với không emoji 0.4977.",
+    "Cảm xúc – PhoBERT-base-v2 (vinai/phobert-base-v2): câu có emoji F1 0.5582 so với không emoji 0.5963."
+  ],
+  "created_at": "2026-11-01T20:10:44",
+  "env": {
+    "python": "3.14.7",
+    "platform": "Windows-11-10.0.22621-SP0",
+    "torch": "2.14.1+cu126",
+    "gpu": "NVIDIA GeForce GTX 1050 Ti"
+  }
+}
