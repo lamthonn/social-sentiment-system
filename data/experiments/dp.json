@@ -1,0 +1,143 @@
+{
+  "name": "dp",
+  "title": "Đánh đổi riêng tư – độ chính xác (DP-SGD)",
+  "question": "CH4 - học máy bảo toàn quyền riêng tư (T-44, QD-06)",
+  "description": "Đặc trưng: ViSoBERT gốc đóng băng (trung bình token, chuẩn hóa L2 từng mẫu). Lớp phân loại tuyến tính huấn luyện bằng Adam, 30 epoch, batch 256, lr 0.005; DP-SGD qua Opacus (RDP accountant, cắt gradient từng mẫu ở 1.0), δ = 1/N. Mỗi mức chạy 3 seed. Bảo đảm riêng tư áp cho dữ liệu huấn luyện của lớp phân loại.",
+  "tables": [
+    {
+      "title": "F1-macro theo mức riêng tư ε (nhỏ hơn = riêng tư hơn)",
+      "columns": [
+        "Bài toán",
+        "ε (mục tiêu)",
+        "ε đạt được",
+        "δ",
+        "Hệ số nhiễu",
+        "F1-macro (TB)",
+        "Độ lệch chuẩn"
+      ],
+      "rows": [
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "ε (mục tiêu)": 0.5,
+          "ε đạt được": 0.4941,
+          "δ": "1/11426",
+          "Hệ số nhiễu": 5.5469,
+          "F1-macro (TB)": 0.5897,
+          "Độ lệch chuẩn": 0.001
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "ε (mục tiêu)": 1.0,
+          "ε đạt được": 0.9971,
+          "δ": "1/11426",
+          "Hệ số nhiễu": 3.0273,
+          "F1-macro (TB)": 0.6058,
+          "Độ lệch chuẩn": 0.0043
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "ε (mục tiêu)": 2.0,
+          "ε đạt được": 1.9924,
+          "δ": "1/11426",
+          "Hệ số nhiễu": 1.7529,
+          "F1-macro (TB)": 0.6268,
+          "Độ lệch chuẩn": 0.0034
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "ε (mục tiêu)": 4.0,
+          "ε đạt được": 3.9921,
+          "δ": "1/11426",
+          "Hệ số nhiễu": 1.1206,
+          "F1-macro (TB)": 0.6436,
+          "Độ lệch chuẩn": 0.0056
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "ε (mục tiêu)": 8.0,
+          "ε đạt được": 7.9974,
+          "δ": "1/11426",
+          "Hệ số nhiễu": 0.8069,
+          "F1-macro (TB)": 0.6637,
+          "Độ lệch chuẩn": 0.0042
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "ε (mục tiêu)": "∞ (không riêng tư)",
+          "ε đạt được": null,
+          "δ": "1/11426",
+          "Hệ số nhiễu": 0.0,
+          "F1-macro (TB)": 0.7522,
+          "Độ lệch chuẩn": 0.0015
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "ε (mục tiêu)": 0.5,
+          "ε đạt được": 0.4902,
+          "δ": "1/5548",
+          "Hệ số nhiễu": 7.5,
+          "F1-macro (TB)": 0.1627,
+          "Độ lệch chuẩn": 0.0102
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "ε (mục tiêu)": 1.0,
+          "ε đạt được": 0.9958,
+          "δ": "1/5548",
+          "Hệ số nhiễu": 4.0625,
+          "F1-macro (TB)": 0.2592,
+          "Độ lệch chuẩn": 0.0063
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "ε (mục tiêu)": 2.0,
+          "ε đạt được": 1.9919,
+          "δ": "1/5548",
+          "Hệ số nhiễu": 2.3047,
+          "F1-macro (TB)": 0.3124,
+          "Độ lệch chuẩn": 0.0048
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "ε (mục tiêu)": 4.0,
+          "ε đạt được": 3.992,
+          "δ": "1/5548",
+          "Hệ số nhiễu": 1.4062,
+          "F1-macro (TB)": 0.3577,
+          "Độ lệch chuẩn": 0.0057
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "ε (mục tiêu)": 8.0,
+          "ε đạt được": 7.9969,
+          "δ": "1/5548",
+          "Hệ số nhiễu": 0.9546,
+          "F1-macro (TB)": 0.3885,
+          "Độ lệch chuẩn": 0.0025
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "ε (mục tiêu)": "∞ (không riêng tư)",
+          "ε đạt được": null,
+          "δ": "1/5548",
+          "Hệ số nhiễu": 0.0,
+          "F1-macro (TB)": 0.604,
+          "Độ lệch chuẩn": 0.0019
+        }
+      ]
+    }
+  ],
+  "findings": [
+    "Quan điểm (VSFC): không riêng tư 0.7522; ε=8: 0.6637 (−0.089); ε=1: 0.6058 (−0.146); ε=0.5: 0.5897.",
+    "Cảm xúc (VSMEC): không riêng tư 0.604; ε=8: 0.3885 (−0.215); ε=1: 0.2592 (−0.345); ε=0.5: 0.1627.",
+    "So với fine-tune toàn bộ ViSoBERT không riêng tư (R-05: 0.809, R-06: 0.665), phần lớn chênh lệch đến từ việc đóng băng bộ trích đặc trưng, không phải từ DP - cần tách hai yếu tố này khi viết báo cáo.",
+    "DP-SGD cho toàn bộ ViSoBERT (thay vì chỉ lớp cuối) cần nhiều bộ nhớ hơn GPU 4GB hiện có - để ở hướng phát triển."
+  ],
+  "created_at": "2026-11-01T15:50:05",
+  "env": {
+    "python": "3.14.7",
+    "platform": "Windows-11-10.0.22621-SP0",
+    "torch": "2.14.1+cu126",
+    "gpu": "NVIDIA GeForce GTX 1050 Ti"
+  }
+}

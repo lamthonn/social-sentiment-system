@@ -1,0 +1,89 @@
+{
+  "name": "llm",
+  "title": "LLM zero-shot / few-shot so với mô hình fine-tune",
+  "question": "CH1 - so sánh kỹ thuật (T-40)",
+  "description": "Qwen/Qwen2.5-1.5B-Instruct chạy cục bộ fp16, sinh tối đa 8 token, giải mã tham lam. Mẫu phân tầng tập test (tối đa 100 câu/nhãn quan điểm, 40 câu/nhãn cảm xúc). Câu trả lời không khớp nhãn nào được gán nhãn đa số của mẫu.",
+  "tables": [
+    {
+      "title": "So sánh trên cùng mẫu",
+      "columns": [
+        "Bài toán",
+        "Phương pháp",
+        "Số câu",
+        "Accuracy",
+        "F1-macro",
+        "Trả lời đúng định dạng",
+        "Giây/câu"
+      ],
+      "rows": [
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Phương pháp": "Qwen2.5-1.5B zero-shot",
+          "Số câu": 300,
+          "Accuracy": 0.56,
+          "F1-macro": 0.4933,
+          "Trả lời đúng định dạng": "100%",
+          "Giây/câu": 0.264
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Phương pháp": "Qwen2.5-1.5B few-shot (1 ví dụ/nhãn)",
+          "Số câu": 300,
+          "Accuracy": 0.7667,
+          "F1-macro": 0.7478,
+          "Trả lời đúng định dạng": "100%",
+          "Giây/câu": 0.444
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Phương pháp": "Qwen2.5-1.5B zero-shot",
+          "Số câu": 277,
+          "Accuracy": 0.3357,
+          "F1-macro": 0.2988,
+          "Trả lời đúng định dạng": "99%",
+          "Giây/câu": 0.367
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Phương pháp": "Qwen2.5-1.5B few-shot (1 ví dụ/nhãn)",
+          "Số câu": 277,
+          "Accuracy": 0.278,
+          "F1-macro": 0.2318,
+          "Trả lời đúng định dạng": "100%",
+          "Giây/câu": 3.704
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Phương pháp": "phobert đã fine-tune (đang dùng)",
+          "Số câu": 300,
+          "Accuracy": 0.8133,
+          "F1-macro": 0.7996,
+          "Trả lời đúng định dạng": "100%",
+          "Giây/câu": 0.0109
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Phương pháp": "visobert đã fine-tune (đang dùng)",
+          "Số câu": 277,
+          "Accuracy": 0.6823,
+          "F1-macro": 0.6807,
+          "Trả lời đúng định dạng": "100%",
+          "Giây/câu": 0.0066
+        }
+      ]
+    }
+  ],
+  "findings": [
+    "Quan điểm (VSFC): LLM tốt nhất (Qwen2.5-1.5B few-shot (1 ví dụ/nhãn)) F1-macro 0.7478 so với mô hình fine-tune 0.7996 trên cùng 300 câu; LLM chậm hơn khoảng 41 lần.",
+    "Cảm xúc (VSMEC): LLM tốt nhất (Qwen2.5-1.5B zero-shot) F1-macro 0.2988 so với mô hình fine-tune 0.6807 trên cùng 277 câu; LLM chậm hơn khoảng 56 lần.",
+    "Mẫu được lấy cân bằng theo nhãn nên F1-macro ở đây không so trực tiếp được với R-xx (đo trên toàn bộ tập test lệch lớp).",
+    "Chỉ thử LLM 1.5B (giới hạn GPU 4GB); LLM lớn hơn có thể tốt hơn nhưng cần phần cứng mạnh hơn hoặc gửi dữ liệu ra dịch vụ ngoài (rủi ro quyền riêng tư)."
+  ],
+  "created_at": "2026-11-01T16:32:29",
+  "env": {
+    "python": "3.14.7",
+    "platform": "Windows-11-10.0.22621-SP0",
+    "torch": "2.14.1+cu126",
+    "gpu": "NVIDIA GeForce GTX 1050 Ti"
+  }
+}

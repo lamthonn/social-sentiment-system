@@ -1,0 +1,107 @@
+{
+  "name": "perf",
+  "title": "Hiệu năng hệ thống",
+  "question": "CH3, CH5 - hiệu năng (T-33)",
+  "description": "Đo trên máy chạy thử. Thông lượng: dự đoán 1.000 câu (trung vị 3 lần); độ trễ 1 câu: trung vị 30 lần; làm sạch 3859 câu. Bước PhoBERT gồm cả tách từ bằng underthesea.",
+  "tables": [
+    {
+      "title": "Thông lượng và độ trễ",
+      "columns": [
+        "Thành phần",
+        "Thiết bị",
+        "Thông lượng (câu/giây)",
+        "Độ trễ 1 câu (ms)",
+        "Bộ nhớ GPU đỉnh (MB)"
+      ],
+      "rows": [
+        {
+          "Thành phần": "Làm sạch (preprocessing/text.py)",
+          "Thiết bị": "CPU",
+          "Thông lượng (câu/giây)": 14352,
+          "Độ trễ 1 câu (ms)": 0.0697,
+          "Bộ nhớ GPU đỉnh (MB)": null
+        },
+        {
+          "Thành phần": "Dự đoán – PhoBERT-base-v2 (vinai/phobert-base-v2)",
+          "Thiết bị": "NVIDIA GeForce GTX 1050 Ti",
+          "Thông lượng (câu/giây)": 126,
+          "Độ trễ 1 câu (ms)": 11.8276,
+          "Bộ nhớ GPU đỉnh (MB)": 601
+        },
+        {
+          "Thành phần": "Dự đoán – BiLSTM",
+          "Thiết bị": "NVIDIA GeForce GTX 1050 Ti",
+          "Thông lượng (câu/giây)": 5807,
+          "Độ trễ 1 câu (ms)": 0.7667,
+          "Bộ nhớ GPU đỉnh (MB)": 439
+        },
+        {
+          "Thành phần": "Dự đoán – ViSoBERT (uitnlp/visobert)",
+          "Thiết bị": "NVIDIA GeForce GTX 1050 Ti",
+          "Thông lượng (câu/giây)": 134,
+          "Độ trễ 1 câu (ms)": 12.6626,
+          "Bộ nhớ GPU đỉnh (MB)": 486
+        },
+        {
+          "Thành phần": "Dự đoán – TF-IDF + Linear SVM",
+          "Thiết bị": "CPU",
+          "Thông lượng (câu/giây)": 8690,
+          "Độ trễ 1 câu (ms)": 1.76,
+          "Bộ nhớ GPU đỉnh (MB)": null
+        },
+        {
+          "Thành phần": "Dự đoán – TF-IDF + Logistic Regression",
+          "Thiết bị": "CPU",
+          "Thông lượng (câu/giây)": 8951,
+          "Độ trễ 1 câu (ms)": 1.6789,
+          "Bộ nhớ GPU đỉnh (MB)": null
+        }
+      ]
+    },
+    {
+      "title": "Độ trễ API (CSDL hiện tại)",
+      "columns": [
+        "Endpoint",
+        "Trung vị (ms)"
+      ],
+      "rows": [
+        {
+          "Endpoint": "/health",
+          "Trung vị (ms)": 3.7235
+        },
+        {
+          "Endpoint": "/dashboard/summary?days=30",
+          "Trung vị (ms)": 20.9268
+        },
+        {
+          "Endpoint": "/analysis/posts?page_size=20",
+          "Trung vị (ms)": 18.2172
+        },
+        {
+          "Endpoint": "/topics/latest",
+          "Trung vị (ms)": 9.0509
+        },
+        {
+          "Endpoint": "/models/runs",
+          "Trung vị (ms)": 12.1361
+        },
+        {
+          "Endpoint": "/pipeline/runs",
+          "Trung vị (ms)": 10.6257
+        }
+      ]
+    }
+  ],
+  "findings": [
+    "Làm sạch đạt khoảng 14.352 câu/giây trên CPU - không phải nút cổ chai.",
+    "Mô hình nhanh nhất: TF-IDF + Logistic Regression (8951 câu/giây). Transformer chậm hơn nhưng vẫn đủ cho quy mô thu thập của đề tài (quota YouTube ~10.000 đơn vị/ngày tương đương tối đa vài trăm nghìn bình luận/ngày).",
+    "Độ trễ API đo với CSDL gần như trống (chưa có dữ liệu thu thập thật) - cần đo lại khi có dữ liệu."
+  ],
+  "created_at": "2026-11-01T16:02:24",
+  "env": {
+    "python": "3.14.7",
+    "platform": "Windows-11-10.0.22621-SP0",
+    "torch": "2.14.1+cu126",
+    "gpu": "NVIDIA GeForce GTX 1050 Ti"
+  }
+}

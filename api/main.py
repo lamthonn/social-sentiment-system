@@ -15,19 +15,25 @@ from api.schemas import (
     TrackedVideoIn,
     TrackedVideoOut,
 )
+from api.app_routes import router as app_router
+from api.security_mw import AuthMiddleware
 from collector import scheduler as job_scheduler
 from config.settings import settings
 from storage.database import get_session
 from storage.models import AnalysisResult, RawPost, SearchQuery, TrackedVideo
 
-app = FastAPI(title="Social Sentiment System API", version="0.1.0")
+app = FastAPI(title="Social Sentiment System API", version="0.2.0")
 
+# Thứ tự: CORS thêm sau nên bọc ngoài cùng -> phản hồi 401/403 của AuthMiddleware vẫn có header CORS.
+# AuthMiddleware: mọi route cần đăng nhập + đúng vai trò, trừ các route công khai khai báo ở api/security_mw.py
+app.add_middleware(AuthMiddleware)
 app.add_middleware(
     CORSMiddleware,
     allow_origins=settings.cors_origins_list,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(app_router)
 
 
 @app.on_event("startup")
@@ -60,7 +66,10 @@ def health() -> dict:
 @app.get("/stats", response_model=StatsResponse)
 def stats(session: Session = Depends(get_session)) -> StatsResponse:
     total_posts = session.scalar(select(func.count()).select_from(RawPost)) or 0
-    analyzed = session.scalar(select(func.count()).select_from(AnalysisResult)) or 0
+    # đếm số bài đã có nhãn quan điểm (không đếm trùng khi cùng bài có kết quả của nhiều task/mô hình)
+    analyzed = session.scalar(
+        select(func.count(func.distinct(AnalysisResult.raw_post_id))).where(AnalysisResult.task == "sentiment")
+    ) or 0
     return StatsResponse(total_posts=total_posts, analyzed=analyzed)
 
 

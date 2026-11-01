@@ -14,3 +14,9 @@ mlruns/
 frontend/node_modules/
 frontend/dist/
 frontend/.env
+# pipeline: bộ dữ liệu tải về, mô hình đã huấn luyện, log chạy (tái tạo bằng python -m pipeline …)
+data/datasets/
+data/models/
+data/logs/
+data/backups/
+data/experiments/cache/
