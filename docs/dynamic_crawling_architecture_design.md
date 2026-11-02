@@ -35,9 +35,9 @@ classDiagram
     class BaseCrawler {
         <<abstract>>
         +config: Dict
-        +fetch_posts(target: str)* List
-        +fetch_comments(post_id: str)* List
-        +normalize(raw_data: Dict)* StandardizedPost
+        +fetch_posts(target: str) List*
+        +fetch_comments(post_id: str) List*
+        +normalize(raw_data: Dict) StandardizedPost*
     }
 
     class YouTubeCrawler {
@@ -59,8 +59,8 @@ classDiagram
     }
 
     class CrawlerFactory {
-        -_crawlers: Map~string, BaseCrawler~
-        +get_crawler(platform: string, config: Dict) BaseCrawler
+        -_crawlers: Map
+        +get_crawler(platform: str, config: Dict) BaseCrawler
     }
 
     BaseCrawler <|-- YouTubeCrawler
@@ -91,35 +91,38 @@ classDiagram
 
 ```mermaid
 flowchart TD
-    subgraph TIER1 [TẦNG 1: QUẢN LÝ CẤU HÌNH ĐỘNG & ĐIỀU PHỐI]
-        UI[Web Dashboard / Admin Portal] -->|Cấu hình Nguồn & Quota| DB_CFG[(PostgreSQL: Config & Tasks)]
-        DB_CFG -->|Đọc Lịch chạy| SCHEDULER[Scheduler Engine: Celery Beat]
+    subgraph TIER1 ["TẦNG 1: QUẢN LÝ CẤU HÌNH ĐỘNG & ĐIỀU PHỐI"]
+        UI["Web Dashboard / Admin Portal"] -->|Cấu hình Nguồn & Quota| DB_CFG[("PostgreSQL: Config & Tasks")]
+        DB_CFG -->|Đọc Lịch chạy| SCHEDULER["Scheduler Engine: Celery Beat"]
     end
 
-    subgraph TIER2 [TẦNG 2: HÀNG ĐỢI TÁC VỤ & PHÂN PHỐI]
-        SCHEDULER -->|Phát Task Job| QUEUE[(Message Queue Broker: Redis / RabbitMQ)]
+    subgraph TIER2 ["TẦNG 2: HÀNG ĐỢI TÁC VỤ & PHÂN PHỐI"]
+        SCHEDULER -->|Phát Task Job| QUEUE[("Message Queue Broker: Redis / RabbitMQ")]
     end
 
-    subgraph TIER3 [TẦNG 3: ENGINE THU THẬP ĐỘNG - WORKER POOL]
-        QUEUE --> WORKER[Celery Worker Cluster]
-        WORKER --> FACTORY{Crawler Factory}
-        FACTORY -->|Dynamic Load| YOUTUBE_ADAPTER[YouTube Data API Adapter]
-        FACTORY -->|Dynamic Load| TIKTOK_ADAPTER[TikTok Playwright / API Adapter]
-        FACTORY -->|Dynamic Load| FB_ADAPTER[Facebook Public Scraping Adapter]
-        FACTORY -->|Dynamic Load| CUSTOM_ADAPTER[Custom News/Web Adapter]
+    subgraph TIER3 ["TẦNG 3: ENGINE THU THẬP ĐỘNG - WORKER POOL"]
+        QUEUE --> WORKER["Celery Worker Cluster"]
+        WORKER --> FACTORY{"Crawler Factory"}
+        FACTORY -->|Dynamic Load| YOUTUBE_ADAPTER["YouTube Data API Adapter"]
+        FACTORY -->|Dynamic Load| TIKTOK_ADAPTER["TikTok Playwright / API Adapter"]
+        FACTORY -->|Dynamic Load| FB_ADAPTER["Facebook Public Scraping Adapter"]
+        FACTORY -->|Dynamic Load| CUSTOM_ADAPTER["Custom News / Web Adapter"]
     end
 
-    subgraph TIER4 [TẦNG 4: ĐƯỜNG ỐNG BẢO MẬT & CHUẨN HÓA]
-        YOUTUBE_ADAPTER & TIKTOK_ADAPTER & FB_ADAPTER & CUSTOM_ADAPTER --> NORMALIZER[1. Unified Schema Transformer]
-        NORMALIZER --> HASHER[2. PII SHA-256 Anonymizer]
-        HASHER --> CLEANER[3. Teencode & Noise Filter]
-        CLEANER --> DEDUP[4. Cosine Similarity Deduplicator]
+    subgraph TIER4 ["TẦNG 4: ĐƯỜNG ỐNG BẢO MẬT & CHUẨN HÓA"]
+        YOUTUBE_ADAPTER --> NORMALIZER["1. Unified Schema Transformer"]
+        TIKTOK_ADAPTER --> NORMALIZER
+        FB_ADAPTER --> NORMALIZER
+        CUSTOM_ADAPTER --> NORMALIZER
+        NORMALIZER --> HASHER["2. PII SHA-256 Anonymizer"]
+        HASHER --> CLEANER["3. Teencode & Noise Filter"]
+        CLEANER --> DEDUP["4. Cosine Similarity Deduplicator"]
     end
 
-    subgraph TIER5 [TẦNG 5: LƯU TRỮ VÀ PHỤC VỤ MÔ HÌNH AI]
-        DEDUP --> DB_RAW[(PostgreSQL JSONB: Raw & Clean Posts)]
-        DEDUP --> VECTOR_DB[(Vector Database: Qdrant / ChromaDB)]
-        DEDUP --> AI_QUEUE[(Kafka / Redis Stream to AI Models)]
+    subgraph TIER5 ["TẦNG 5: LƯU TRỮ VÀ PHỤC VỤ MÔ HÌNH AI"]
+        DEDUP --> DB_RAW[("PostgreSQL JSONB: Raw & Clean Posts")]
+        DEDUP --> VECTOR_DB[("Vector Database: Qdrant / ChromaDB")]
+        DEDUP --> AI_QUEUE[("Kafka / Redis Stream to AI Models")]
     end
 ```
 

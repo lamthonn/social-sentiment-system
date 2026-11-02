@@ -1,0 +1,126 @@
+{
+  "name": "poisoning",
+  "title": "Tấn công đầu độc dữ liệu (lật nhãn) và phòng vệ",
+  "question": "CH4 - an toàn mô hình học máy (T-45, T-29)",
+  "description": "Lật ngẫu nhiên p% nhãn của tập huấn luyện; mô hình TF-IDF + Logistic Regression. Phòng vệ: dự đoán chéo 5-fold, loại mẫu có xác suất nhãn của chính nó < 0.15 rồi huấn luyện lại. Đánh giá trên tập test sạch. Huấn luyện chỉ trên tập train (không gộp validation như R-01/R-03) nên mốc 0% thấp hơn R-01/R-03 một chút.",
+  "tables": [
+    {
+      "title": "F1-macro theo mức đầu độc",
+      "columns": [
+        "Bài toán",
+        "Tỉ lệ lật nhãn",
+        "F1-macro không phòng vệ",
+        "F1-macro có phòng vệ",
+        "Mẫu bị loại",
+        "Precision phát hiện",
+        "Recall phát hiện"
+      ],
+      "rows": [
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Tỉ lệ lật nhãn": "0%",
+          "F1-macro không phòng vệ": 0.7508,
+          "F1-macro có phòng vệ": 0.7542,
+          "Mẫu bị loại": 392,
+          "Precision phát hiện": null,
+          "Recall phát hiện": null
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Tỉ lệ lật nhãn": "10%",
+          "F1-macro không phòng vệ": 0.6993,
+          "F1-macro có phòng vệ": 0.7219,
+          "Mẫu bị loại": 1129,
+          "Precision phát hiện": 0.69,
+          "Recall phát hiện": 0.6821
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Tỉ lệ lật nhãn": "20%",
+          "F1-macro không phòng vệ": 0.6471,
+          "F1-macro có phòng vệ": 0.6638,
+          "Mẫu bị loại": 1449,
+          "Precision phát hiện": 0.8254,
+          "Recall phát hiện": 0.5234
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Tỉ lệ lật nhãn": "30%",
+          "F1-macro không phòng vệ": 0.6029,
+          "F1-macro có phòng vệ": 0.6157,
+          "Mẫu bị loại": 1602,
+          "Precision phát hiện": 0.8596,
+          "Recall phát hiện": 0.4018
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Tỉ lệ lật nhãn": "40%",
+          "F1-macro không phòng vệ": 0.5465,
+          "F1-macro có phòng vệ": 0.5623,
+          "Mẫu bị loại": 1611,
+          "Precision phát hiện": 0.8659,
+          "Recall phát hiện": 0.3053
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Tỉ lệ lật nhãn": "0%",
+          "F1-macro không phòng vệ": 0.5948,
+          "F1-macro có phòng vệ": 0.568,
+          "Mẫu bị loại": 956,
+          "Precision phát hiện": null,
+          "Recall phát hiện": null
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Tỉ lệ lật nhãn": "10%",
+          "F1-macro không phòng vệ": 0.557,
+          "F1-macro có phòng vệ": 0.5726,
+          "Mẫu bị loại": 1382,
+          "Precision phát hiện": 0.3075,
+          "Recall phát hiện": 0.7671
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Tỉ lệ lật nhãn": "20%",
+          "F1-macro không phòng vệ": 0.5243,
+          "F1-macro có phòng vệ": 0.5374,
+          "Mẫu bị loại": 1810,
+          "Precision phát hiện": 0.4514,
+          "Recall phát hiện": 0.7367
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Tỉ lệ lật nhãn": "30%",
+          "F1-macro không phòng vệ": 0.4905,
+          "F1-macro có phòng vệ": 0.5025,
+          "Mẫu bị loại": 2206,
+          "Precision phát hiện": 0.5521,
+          "Recall phát hiện": 0.732
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Tỉ lệ lật nhãn": "40%",
+          "F1-macro không phòng vệ": 0.422,
+          "F1-macro có phòng vệ": 0.5025,
+          "Mẫu bị loại": 2494,
+          "Precision phát hiện": 0.6323,
+          "Recall phát hiện": 0.7107
+        }
+      ]
+    }
+  ],
+  "findings": [
+    "Quan điểm (VSFC): lật 40% nhãn làm F1-macro giảm từ 0.7508 xuống 0.5465; có phòng vệ còn 0.5623 (phát hiện đúng 31% mẫu bị lật).",
+    "Quan điểm (VSFC), mức lật 20%: phòng vệ cải thiện F1-macro (0.6471 -> 0.6638).",
+    "Cảm xúc (VSMEC): lật 40% nhãn làm F1-macro giảm từ 0.5948 xuống 0.422; có phòng vệ còn 0.5025 (phát hiện đúng 71% mẫu bị lật).",
+    "Cảm xúc (VSMEC), mức lật 20%: phòng vệ cải thiện F1-macro (0.5243 -> 0.5374).",
+    "Khi KHÔNG bị tấn công (0%), phòng vệ vẫn loại 392 mẫu ở Quan điểm (VSFC) (F1 0.7508 -> 0.7542), 956 mẫu ở Cảm xúc (VSMEC) (F1 0.5948 -> 0.568) - đó là mẫu khó/nhập nhằng có nhãn đúng; chỉ nên bật phòng vệ khi giám sát nghi ngờ dữ liệu bị nhiễm, hoặc dùng ngưỡng chặt hơn."
+  ],
+  "created_at": "2026-11-01T15:15:23",
+  "env": {
+    "python": "3.14.7",
+    "platform": "Windows-11-10.0.22621-SP0",
+    "torch": "2.14.1+cu126",
+    "gpu": "NVIDIA GeForce GTX 1050 Ti"
+  }
+}

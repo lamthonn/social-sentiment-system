@@ -1,0 +1,94 @@
+{
+  "name": "topics_eval",
+  "title": "So sánh phương pháp gom chủ đề",
+  "question": "CH2 - phát hiện chủ đề/xu hướng (T-23)",
+  "description": "Gom 16175 câu UIT-VSFC (train+validation+test) thành k = 4 cụm, so với nhãn chủ đề người gán. NMI/ARI: 1 = khớp hoàn toàn, 0 = ngẫu nhiên. Văn bản làm sạch bằng cùng hàm của pipeline.",
+  "tables": [
+    {
+      "title": "Chất lượng gom cụm so với chủ đề người gán",
+      "columns": [
+        "Phương pháp",
+        "NMI",
+        "ARI",
+        "Purity",
+        "Thời gian (giây)"
+      ],
+      "rows": [
+        {
+          "Phương pháp": "TF-IDF + NMF (M-21, đang dùng)",
+          "NMI": 0.0827,
+          "ARI": -0.042,
+          "Purity": 0.7176,
+          "Thời gian (giây)": 0.7
+        },
+        {
+          "Phương pháp": "LDA (M-12)",
+          "NMI": 0.1159,
+          "ARI": 0.0806,
+          "Purity": 0.7176,
+          "Thời gian (giây)": 61.1
+        },
+        {
+          "Phương pháp": "K-means trên TF-IDF (M-13)",
+          "NMI": 0.0882,
+          "ARI": -0.1141,
+          "Purity": 0.7176,
+          "Thời gian (giây)": 0.8
+        },
+        {
+          "Phương pháp": "K-means trên embedding ViSoBERT (M-13 + M-18)",
+          "NMI": 0.1378,
+          "ARI": 0.0941,
+          "Purity": 0.7176,
+          "Thời gian (giây)": 174.5
+        }
+      ]
+    }
+  ],
+  "findings": [
+    "Tốt nhất theo NMI: K-means trên embedding ViSoBERT (M-13 + M-18) (NMI 0.1378, ARI 0.0941, purity 0.7176).",
+    "Dữ liệu lệch chủ đề: Giảng viên 72%, Chương trình đào tạo 19%, Cơ sở vật chất 4%, Khác 5% - purity tối thiểu (gán hết vào chủ đề lớn nhất) là 0.72, nên cần đọc kèm NMI/ARI.",
+    "Gom cụm không giám sát chỉ tìm cấu trúc chung; xu hướng trên dữ liệu thật còn phụ thuộc chuỗi thời gian (chưa có dữ liệu YouTube để đánh giá phần phân loại xu hướng)."
+  ],
+  "created_at": "2026-11-01T15:43:27",
+  "env": {
+    "python": "3.14.7",
+    "platform": "Windows-11-10.0.22621-SP0",
+    "torch": "2.14.1+cu126",
+    "gpu": "NVIDIA GeForce GTX 1050 Ti"
+  },
+  "details": {
+    "TF-IDF + NMF (M-21, đang dùng)": [
+      "cụm 0: 2373 câu, 96% là 'Giảng viên'",
+      "cụm 1: 7931 câu, 61% là 'Giảng viên'",
+      "cụm 2: 3145 câu, 92% là 'Giảng viên'",
+      "cụm 3: 2726 câu, 60% là 'Giảng viên'",
+      "từ khóa cụm 0: tình, nhiệt, nhiệt tình, tận, tâm, dạy nhiệt",
+      "từ khóa cụm 1: viên, sinh, sinh viên, giảng, giảng viên, học",
+      "từ khóa cụm 2: dễ, dễ hiểu, hiểu, dạy, dạy dễ, thầy",
+      "từ khóa cụm 3: bài, bài tập, tập, nhiều, nhiều bài, thầy"
+    ],
+    "LDA (M-12)": [
+      "cụm 0: 4774 câu, 70% là 'Giảng viên'",
+      "cụm 1: 2392 câu, 60% là 'Giảng viên'",
+      "cụm 2: 3984 câu, 50% là 'Giảng viên'",
+      "cụm 3: 5025 câu, 96% là 'Giảng viên'",
+      "từ khóa cụm 0: bài, viên, tập, sinh, sinh viên, giảng",
+      "từ khóa cụm 1: học, thời, nhiều, thầy, lớp, gian",
+      "từ khóa cụm 2: học, sinh, thực, viên, sinh viên, hành",
+      "từ khóa cụm 3: dạy, giảng, tình, nhiệt, nhiệt tình, viên"
+    ],
+    "K-means trên TF-IDF (M-13)": [
+      "cụm 0: 2500 câu, 98% là 'Giảng viên'",
+      "cụm 1: 1224 câu, 63% là 'Giảng viên'",
+      "cụm 2: 1232 câu, 97% là 'Giảng viên'",
+      "cụm 3: 11219 câu, 64% là 'Giảng viên'"
+    ],
+    "K-means trên embedding ViSoBERT (M-13 + M-18)": [
+      "cụm 0: 1641 câu, 53% là 'Giảng viên'",
+      "cụm 1: 3762 câu, 49% là 'Giảng viên'",
+      "cụm 2: 5952 câu, 70% là 'Giảng viên'",
+      "cụm 3: 4820 câu, 98% là 'Giảng viên'"
+    ]
+  }
+}
