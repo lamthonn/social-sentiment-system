@@ -32,6 +32,10 @@ Mở `.env` và đổi `POSTGRES_PASSWORD` cùng `ANONYMIZATION_SALT` (salt nên
 
 ## Chạy
 
+**Cách nhanh (Windows):** bấm đúp `start.bat`, hoặc `python run.py` trên Linux/WSL. Một lệnh làm hết: tạo venv lần đầu, tự cài thư viện khi `requirements.txt`/`package-lock.json` đổi, bật Docker + DB, migrate, chạy API + webapp trong cùng 1 cửa sổ, mở trình duyệt. **Ctrl+C** để dừng tất cả. Muốn ép cài lại thư viện: `start.bat install`.
+
+Hoặc chạy từng bước:
+
 ```bash
 make up               # khởi động PostgreSQL + Adminer (giao diện DB ở http://localhost:8080)
 make migrate          # tạo/nâng cấp bảng (chạy lại sau mỗi lần cập nhật code)
