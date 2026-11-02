@@ -1,7 +1,10 @@
-.PHONY: install up down initdb api frontend-install frontend
+.PHONY: install up down initdb api frontend-install frontend test
 
 install:
 	pip install -r requirements.txt
+
+test:
+	pytest
 
 up:
 	docker compose up -d

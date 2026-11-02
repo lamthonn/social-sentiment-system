@@ -55,7 +55,7 @@ security/        ẩn danh (băm định danh người dùng)
 collector/       thu thập dữ liệu            (Giai đoạn 2)
 preprocessing/   tiền xử lý NLP tiếng Việt   (Giai đoạn 1)
 models/
-  sentiment/     mô hình cảm xúc             (Giai đoạn 1)
+  sentiment/     mô hình cảm xúc             (Giai đoạn 3)
   trend/         mô hình xu hướng            (Giai đoạn 4)
 api/             FastAPI
 frontend/        React + Ant Design (Vite)
@@ -69,5 +69,5 @@ notebooks/       thử nghiệm & đánh giá
 
 ## Các bước tiếp theo
 
-- Giai đoạn 1: tải bộ dữ liệu UIT-VSMEC/UIT-VSFC, viết tiền xử lý và pipeline fine-tune PhoBERT/ViSoBERT.
-- Giai đoạn 2: viết collector cho một nền tảng, lập lịch, ghi vào `raw_posts`.
+- Giai đoạn 1: đã có bước tiền xử lý (`preprocessing/` - làm sạch, chuẩn hoá teencode, tách câu, tách từ, xem `preprocessing/README.md`). Còn thiếu: tải bộ dữ liệu UIT-VSMEC/UIT-VSFC, viết pipeline fine-tune PhoBERT/ViSoBERT (`models/sentiment/`).
+- Giai đoạn 2: đã xong cho YouTube (thu theo video ID/từ khóa, lập lịch, bật/tắt qua UI - xem `collector/README.md`). TikTok mới scaffold, chưa verify bằng key thật.
