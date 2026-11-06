@@ -29,3 +29,6 @@ sentencepiece>=0.2
 underthesea>=9.5
 # Thực nghiệm quyền riêng tư vi phân (experiments/dp.py)
 opacus>=1.6
+
+# ===== Dev / test =====
+pytest>=8.0

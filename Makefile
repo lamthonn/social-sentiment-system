@@ -64,4 +64,4 @@ pipeline:  # thu thập -> làm sạch -> dự đoán -> xu hướng -> giám s�
 	python -m pipeline run
 
 test:
-	python -m unittest preprocessing.test_text
+	pytest tests preprocessing
