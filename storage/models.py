@@ -4,6 +4,7 @@ from datetime import datetime
 from sqlalchemy import Boolean, DateTime, Float, ForeignKey, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
+from security.crypto import EncryptedText
 from storage.database import Base
 
 
@@ -19,7 +20,7 @@ class RawPost(Base):
     platform: Mapped[str] = mapped_column(String(50), index=True)
     post_id: Mapped[str] = mapped_column(String(128), index=True)
     author_hash: Mapped[str] = mapped_column(String(64), index=True)  # SHA-256, KHÔNG lưu ID gốc
-    content: Mapped[str] = mapped_column(Text)
+    content: Mapped[str] = mapped_column(EncryptedText)  # nội dung gốc chưa che PII -> mã hóa khi lưu (T-28)
     # Từ khóa search hoặc ghi chú (label) của video theo dõi đã sinh ra bài này - dùng để
     # lọc/đánh giá model theo từng chủ đề sau này. NULL nếu thu thập thủ công không gắn chủ đề.
     category: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)

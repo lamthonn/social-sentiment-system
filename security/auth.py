@@ -59,6 +59,17 @@ def decode_token(token: str) -> dict | None:
         return None
 
 
+def token_expired_only(token: str) -> bool:
+    """True nếu token đúng chữ ký nhưng đã hết hạn (người dùng thật hết phiên), khác với token giả/sửa đổi."""
+    try:
+        jwt.decode(token, _SECRET, algorithms=["HS256"])
+    except jwt.ExpiredSignatureError:
+        return True
+    except jwt.PyJWTError:
+        return False
+    return False
+
+
 def role_at_least(role: str, minimum: str) -> bool:
     return role in ROLES and ROLES.index(role) >= ROLES.index(minimum)
 

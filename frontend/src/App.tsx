@@ -60,8 +60,9 @@ export default function App() {
     dashboard: <Dashboard />,
     trends: <Trends />,
     analysis: <AnalysisPosts isAdmin={user.role === 'admin'} />,
+    // dữ liệu thô chưa che PII -> chỉ quản trị (API /posts cũng chặn ở security_mw)
     collect: <Tabs items={[
-      { key: 'raw', label: 'Dữ liệu thô', children: <PostsTable /> },
+      ...(user.role === 'admin' ? [{ key: 'raw', label: 'Dữ liệu thô', children: <PostsTable /> }] : []),
       { key: 'config', label: 'Cấu hình thu thập', children: <CollectorConfig /> },
     ]} />,
     models: <Models isAdmin={user.role === 'admin'} />,

@@ -8,7 +8,8 @@ services:
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-password}
       POSTGRES_DB: ${POSTGRES_DB:-sss_dbnckh}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      # chỉ nghe trên máy này - không mở CSDL ra mạng LAN (T-27/T-28)
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     volumes:
       - pgdata:/var/lib/postgresql/data
 
@@ -17,7 +18,7 @@ services:
     container_name: sss_adminer
     restart: unless-stopped
     ports:
-      - "8080:8080"
+      - "127.0.0.1:8080:8080"
     depends_on:
       - db
 

@@ -12,6 +12,16 @@ Research prototype for a Vietnamese master's/NCKH project: collect public social
 
 Code comments, docstrings, log messages, API error messages and UI strings are in Vietnamese — keep new ones consistent. `docs/` holds research/design write-ups (business analysis, crawling Q&A, target dynamic-crawling architecture) that describe intended future design, not current code.
 
+## Two-person workflow (read first)
+
+Two people, Nam and Lâm, each vibe-code with their own Claude. **Before changing anything, follow [team/HUONG_DAN_VIBE_CODE.md](team/HUONG_DAN_VIBE_CODE.md).** Its section 6 holds the rules for Claude. In short:
+
+- **Identify the user.** Use what they say, or `git config user.name`: `namtruong03`/`nambanhboi` → Nam, `Vũ Vương Lâm`/`lamthonn` → Lâm. Ask if unclear.
+- **Read the user's task file at session start.** That is `team/nam.md` or `team/lam.md`. Edit only that file; never edit the other person's.
+- **Stay in the user's own modules** (section 1). Shared files (`storage/models.py`, `storage/migrate.py`, `api/main.py`, `api/security_mw.py`, `config/settings.py`, `requirements.txt`, `frontend/src/App.tsx`, `frontend/src/api.ts`, `Makefile`, `README.md`, this file) follow the append-only conventions in section 4.
+- **One branch per task** (`nam/T-xx-...`, `lam/T-xx-...`), merged into `main` via PR. Merge `origin/main` at the start of each session.
+- **Don't build a second version of something the other person owns.** Write it under "Cần người kia" in the user's task file instead. Example: the two preprocessing modules, see QD-11 in `PROJECT.md`.
+
 ## Project management (`PROJECT.md` + `tools/`)
 
 `PROJECT.md` at the repo root is the single source of project status. It covers overview and phases (GD-xx = research contents from section 7 of the proposal), business analysis (NV-xx), tasks (T-xx), pipeline steps (PL-xx), data sources (DS), cleaning steps (CL), storage (ST), models (M), training runs (R), application problems (BT), and the decision log (QD). The format rules are in the HTML comment at the top of the file:
@@ -41,7 +51,7 @@ python -m security.users add <name> --role admin   # first account; then manage 
 # Pipeline (each run is logged to pipeline_runs)
 python -m pipeline datasets                                   # download + clean UIT-VSFC / UIT-VSMEC into data/datasets/
 python -m pipeline train --task sentiment|emotion --model tfidf-lr|tfidf-svm|bilstm|visobert|phobert [--epochs 4]
-python -m experiments.<poisoning|topics_eval|dp|robustness|llm|perf>   # writes data/experiments/<name>.json, shown in webapp
+python -m experiments.<poisoning|topics_eval|dp|federated|robustness|llm|perf|security_eval>   # writes data/experiments/<name>.json, shown in webapp
 python -m storage.backup                                      # pg_dump -> data/backups/
 python -m pipeline collect|clean|predict|trends|monitor       # or: python -m pipeline run  (all five)
 python -m pipeline select --task sentiment --run-code <code>  # pin a model manually
@@ -64,8 +74,11 @@ All components share one PostgreSQL database:
 
 1. **API** (`api/main.py`, FastAPI). Lâm's original endpoints (`/stats`, `/posts`, collector config, `/scheduler`) live there. Webapp endpoints live in `api/app_routes.py`: auth, users, audit, dashboard, `/analysis/posts`, topics, model runs, and pipeline triggers.
    - **Every route is protected by `api/security_mw.py`.** `RULES` maps method plus path regex to a minimum role (viewer < analyst < admin). Unmatched routes are admin-only, so declare the role there when you add an endpoint.
-   - The middleware also writes `audit_logs` for every non-GET request and for GETs that view data.
-   - Analysts get only `clean_posts.clean_text` (PII masked); raw `content` is returned only to admins.
+   - The middleware also writes `audit_logs` for every non-GET request and for GETs that view data, and for bad tokens (`invalid-token` = bad signature, `expired-token` = real session expired).
+   - `security/detect.py` turns `audit_logs` into security alerts (sliding-window rules). The monitor step runs it. `redact_for_role` hides alert details (usernames, IPs) from non-admins in `/dashboard/summary` and `/pipeline/runs`.
+   - Analysts get only `clean_posts.clean_text` (PII masked); raw `content` is returned only to admins. `GET /posts` (Lâm's raw-data list) is admin-only for this reason.
+   - `raw_posts.content` is an `EncryptedText` column (`security/crypto.py`, Fernet, key `DATA_ENCRYPTION_KEY`). ORM reads and writes are transparent, but SQL `LIKE`/`=` on it sees ciphertext, so search `clean_posts.clean_text` instead. Values without the `enc1:` prefix are legacy plaintext.
+   - HTTPS: `python -m security.tls` writes `data/certs/`. When the cert exists, Vite serves https and `run.py` binds the API to 127.0.0.1.
 2. **Scheduler** (`collector/scheduler.py`) runs inside the API process as a `BackgroundScheduler`, toggled from the UI and persisted in `scheduler_state`. There is also a CLI `BlockingScheduler`; don't run both at once. Each tick re-reads config from the DB.
 3. **Pipeline** (`python -m pipeline`). Each step is wrapped in `pipeline.runlog.pipeline_run`, which records a `pipeline_runs` row.
    - The webapp triggers steps as subprocesses (`/pipeline/run`). The allowed steps are listed in `STEPS`; `train` and `datasets` are admin-only.

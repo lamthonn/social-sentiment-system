@@ -5,6 +5,8 @@ Khung dự án (**Giai đoạn 0**) cho đề tài "Nghiên cứu các kỹ thu�
 Giai đoạn 0 dựng sẵn: cấu trúc thư mục, PostgreSQL qua Docker, tầng cấu hình, tầng CSDL (ORM), hàm ẩn danh dữ liệu, khung API (FastAPI) và frontend (React + Ant Design).
 
 > Hướng dẫn chạy chi tiết từng bước (kèm troubleshooting) xem tại **[HUONG_DAN_CHAY.md](HUONG_DAN_CHAY.md)**.
+> Hướng dẫn sử dụng webapp (từng màn hình, vai trò, câu hỏi thường gặp): **[HUONG_DAN_SU_DUNG.md](HUONG_DAN_SU_DUNG.md)**.
+> Chia việc và quy trình làm việc 2 người (Nam, Lâm) với Claude: **[team/HUONG_DAN_VIBE_CODE.md](team/HUONG_DAN_VIBE_CODE.md)**.
 >
 > Tình trạng dự án (nghiệp vụ, đầu việc, pipeline, model, thí nghiệm) nằm trong **[PROJECT.md](PROJECT.md)**. Công cụ xem/sửa/đồng bộ: `node tools/server.js`, xem [tools/README.md](tools/README.md).
 
@@ -45,6 +47,17 @@ make frontend         # chạy webapp ở http://localhost:5500
 make down             # dừng các container
 ```
 
+### Bảo mật khi chạy (làm 1 lần mỗi máy)
+
+```bash
+python -m security.crypto genkey   # dán kết quả vào .env: DATA_ENCRYPTION_KEY=...  (mã hóa nội dung gốc + bản sao lưu)
+python -m security.tls             # chứng chỉ HTTPS tự ký -> webapp chạy ở https://localhost:5500
+```
+
+- **Mất `DATA_ENCRYPTION_KEY` là mất dữ liệu đã mã hóa.** Cất một bản khóa ở nơi riêng, không để cùng chỗ với bản sao lưu. Nếu đã có dữ liệu cũ dạng rõ, chạy `python -m security.crypto encrypt-existing`.
+- Có chứng chỉ thì API chỉ nghe `127.0.0.1`, trình duyệt đi qua Vite (https). Trình duyệt sẽ cảnh báo chứng chỉ tự ký: chấp nhận một lần, hoặc nhập `data/certs/cert.pem` vào Trusted Root (certmgr.msc).
+- PostgreSQL và Adminer chỉ mở trên máy này (`127.0.0.1`). Nếu cổng 5432 bị dự án khác chiếm, đặt `POSTGRES_PORT=5433` trong `.env`.
+
 ### Tạo tài khoản webapp (lần đầu)
 
 Mọi màn hình và API (trừ `/health`) đều cần đăng nhập. Tạo tài khoản quản trị bằng dòng lệnh:
@@ -69,7 +82,7 @@ make datasets         # tải + làm sạch UIT-VSFC (quan điểm 3 lớp) và 
 make train-baselines  # TF-IDF + LR/SVM cho cả 2 bài toán (vài chục giây mỗi mô hình)
 make train-visobert   # fine-tune ViSoBERT (cần GPU NVIDIA)
 make train-more       # BiLSTM + PhoBERT-base-v2 (PhoBERT cần GPU, tách từ bằng underthesea)
-make experiments      # thực nghiệm bổ sung: đầu độc dữ liệu, gom chủ đề, DP-SGD, độ bền, LLM, hiệu năng
+make experiments      # thực nghiệm bổ sung: đầu độc dữ liệu, gom chủ đề, DP-SGD, học liên kết, độ bền, LLM, hiệu năng, đánh giá an ninh
 make backup           # sao lưu CSDL vào data/backups/
 make pipeline         # 1 lượt: thu thập -> làm sạch -> dự đoán -> xu hướng -> giám sát
 make test             # kiểm thử tiền xử lý

@@ -16,6 +16,8 @@ apscheduler>=3.10
 # ===== Pipeline + webapp (Giai đoạn 1 trở đi) =====
 # Webapp: đăng nhập JWT
 PyJWT>=2.8
+# Mã hóa khi lưu (security/crypto.py) + chứng chỉ HTTPS dev
+cryptography>=42
 # Dữ liệu + mô hình cổ điển
 pandas>=2.2
 pyarrow>=15

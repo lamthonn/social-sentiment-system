@@ -1,0 +1,265 @@
+{
+  "name": "federated",
+  "title": "Mô phỏng học liên kết (FedAvg)",
+  "question": "CH4 - học máy bảo toàn quyền riêng tư (T-48, QD-06, M-20)",
+  "description": "5 bên mô phỏng trên một máy; FedAvg 40 vòng, mỗi vòng 1 epoch cục bộ, Adam lr 0.005, batch 64. Mô hình: lớp tuyến tính trên đặc trưng ViSoBERT gốc đóng băng. Non-IID: tỉ lệ mỗi nhãn chia cho các bên theo Dirichlet(α). 'Lệch nhãn' = trung bình khoảng cách tổng biến phân giữa phân phối nhãn của từng bên và toàn bộ (0 = giống hệt). Mỗi cấu hình 3 seed; 'Riêng lẻ' = mỗi bên tự học trên dữ liệu của mình, chấm trên tập test chung.",
+  "tables": [
+    {
+      "title": "F1-macro: tập trung, học liên kết, học riêng lẻ",
+      "columns": [
+        "Bài toán",
+        "Cách chia dữ liệu",
+        "Phương pháp",
+        "F1-macro (TB)",
+        "Độ lệch chuẩn",
+        "Lệch nhãn giữa các bên"
+      ],
+      "rows": [
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Cách chia dữ liệu": "-",
+          "Phương pháp": "Tập trung (gom hết dữ liệu)",
+          "F1-macro (TB)": 0.7743,
+          "Độ lệch chuẩn": 0.0006,
+          "Lệch nhãn giữa các bên": null
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Cách chia dữ liệu": "IID (chia đều)",
+          "Phương pháp": "FedAvg 5 bên",
+          "F1-macro (TB)": 0.7522,
+          "Độ lệch chuẩn": 0.0013,
+          "Lệch nhãn giữa các bên": 0.0077
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Cách chia dữ liệu": "IID (chia đều)",
+          "Phương pháp": "Riêng lẻ (TB các bên)",
+          "F1-macro (TB)": 0.728,
+          "Độ lệch chuẩn": 0.0107,
+          "Lệch nhãn giữa các bên": 0.0077
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Cách chia dữ liệu": "Non-IID Dirichlet α=1.0",
+          "Phương pháp": "FedAvg 5 bên",
+          "F1-macro (TB)": 0.6606,
+          "Độ lệch chuẩn": 0.0185,
+          "Lệch nhãn giữa các bên": 0.2859
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Cách chia dữ liệu": "Non-IID Dirichlet α=1.0",
+          "Phương pháp": "Riêng lẻ (TB các bên)",
+          "F1-macro (TB)": 0.6404,
+          "Độ lệch chuẩn": 0.0705,
+          "Lệch nhãn giữa các bên": 0.2859
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Cách chia dữ liệu": "Non-IID Dirichlet α=0.3",
+          "Phương pháp": "FedAvg 5 bên",
+          "F1-macro (TB)": 0.678,
+          "Độ lệch chuẩn": 0.0196,
+          "Lệch nhãn giữa các bên": 0.3772
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Cách chia dữ liệu": "Non-IID Dirichlet α=0.3",
+          "Phương pháp": "Riêng lẻ (TB các bên)",
+          "F1-macro (TB)": 0.4824,
+          "Độ lệch chuẩn": 0.1854,
+          "Lệch nhãn giữa các bên": 0.3772
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Cách chia dữ liệu": "Non-IID Dirichlet α=0.1",
+          "Phương pháp": "FedAvg 5 bên",
+          "F1-macro (TB)": 0.6652,
+          "Độ lệch chuẩn": 0.075,
+          "Lệch nhãn giữa các bên": 0.5382
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Cách chia dữ liệu": "Non-IID Dirichlet α=0.1",
+          "Phương pháp": "Riêng lẻ (TB các bên)",
+          "F1-macro (TB)": 0.3194,
+          "Độ lệch chuẩn": 0.2329,
+          "Lệch nhãn giữa các bên": 0.5382
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Cách chia dữ liệu": "-",
+          "Phương pháp": "Tập trung (gom hết dữ liệu)",
+          "F1-macro (TB)": 0.6182,
+          "Độ lệch chuẩn": 0.0037,
+          "Lệch nhãn giữa các bên": null
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Cách chia dữ liệu": "IID (chia đều)",
+          "Phương pháp": "FedAvg 5 bên",
+          "F1-macro (TB)": 0.5969,
+          "Độ lệch chuẩn": 0.0065,
+          "Lệch nhãn giữa các bên": 0.0234
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Cách chia dữ liệu": "IID (chia đều)",
+          "Phương pháp": "Riêng lẻ (TB các bên)",
+          "F1-macro (TB)": 0.5337,
+          "Độ lệch chuẩn": 0.0182,
+          "Lệch nhãn giữa các bên": 0.0234
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Cách chia dữ liệu": "Non-IID Dirichlet α=1.0",
+          "Phương pháp": "FedAvg 5 bên",
+          "F1-macro (TB)": 0.5071,
+          "Độ lệch chuẩn": 0.0327,
+          "Lệch nhãn giữa các bên": 0.3438
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Cách chia dữ liệu": "Non-IID Dirichlet α=1.0",
+          "Phương pháp": "Riêng lẻ (TB các bên)",
+          "F1-macro (TB)": 0.3657,
+          "Độ lệch chuẩn": 0.0903,
+          "Lệch nhãn giữa các bên": 0.3438
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Cách chia dữ liệu": "Non-IID Dirichlet α=0.3",
+          "Phương pháp": "FedAvg 5 bên",
+          "F1-macro (TB)": 0.4563,
+          "Độ lệch chuẩn": 0.0296,
+          "Lệch nhãn giữa các bên": 0.4311
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Cách chia dữ liệu": "Non-IID Dirichlet α=0.3",
+          "Phương pháp": "Riêng lẻ (TB các bên)",
+          "F1-macro (TB)": 0.2789,
+          "Độ lệch chuẩn": 0.0959,
+          "Lệch nhãn giữa các bên": 0.4311
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Cách chia dữ liệu": "Non-IID Dirichlet α=0.1",
+          "Phương pháp": "FedAvg 5 bên",
+          "F1-macro (TB)": 0.445,
+          "Độ lệch chuẩn": 0.093,
+          "Lệch nhãn giữa các bên": 0.5909
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Cách chia dữ liệu": "Non-IID Dirichlet α=0.1",
+          "Phương pháp": "Riêng lẻ (TB các bên)",
+          "F1-macro (TB)": 0.1831,
+          "Độ lệch chuẩn": 0.1028,
+          "Lệch nhãn giữa các bên": 0.5909
+        }
+      ]
+    },
+    {
+      "title": "F1-macro của mô hình chung qua các vòng (seed 0)",
+      "columns": [
+        "Bài toán",
+        "Cách chia",
+        "Vòng 1",
+        "Vòng 5",
+        "Vòng 10",
+        "Vòng 20",
+        "Vòng 40"
+      ],
+      "rows": [
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Cách chia": "IID",
+          "Vòng 1": 0.5732,
+          "Vòng 5": 0.6444,
+          "Vòng 10": 0.6641,
+          "Vòng 20": 0.7117,
+          "Vòng 40": 0.752
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Cách chia": "α=1.0",
+          "Vòng 1": 0.5344,
+          "Vòng 5": 0.5871,
+          "Vòng 10": 0.6018,
+          "Vòng 20": 0.6281,
+          "Vòng 40": 0.6551
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Cách chia": "α=0.3",
+          "Vòng 1": 0.5785,
+          "Vòng 5": 0.5994,
+          "Vòng 10": 0.6267,
+          "Vòng 20": 0.6436,
+          "Vòng 40": 0.665
+        },
+        {
+          "Bài toán": "Quan điểm (VSFC)",
+          "Cách chia": "α=0.1",
+          "Vòng 1": 0.5605,
+          "Vòng 5": 0.5976,
+          "Vòng 10": 0.6041,
+          "Vòng 20": 0.6047,
+          "Vòng 40": 0.6091
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Cách chia": "IID",
+          "Vòng 1": 0.0852,
+          "Vòng 5": 0.3183,
+          "Vòng 10": 0.4388,
+          "Vòng 20": 0.5551,
+          "Vòng 40": 0.6048
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Cách chia": "α=1.0",
+          "Vòng 1": 0.1395,
+          "Vòng 5": 0.2537,
+          "Vòng 10": 0.2948,
+          "Vòng 20": 0.3937,
+          "Vòng 40": 0.4808
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Cách chia": "α=0.3",
+          "Vòng 1": 0.1463,
+          "Vòng 5": 0.191,
+          "Vòng 10": 0.3613,
+          "Vòng 20": 0.4395,
+          "Vòng 40": 0.4958
+        },
+        {
+          "Bài toán": "Cảm xúc (VSMEC)",
+          "Cách chia": "α=0.1",
+          "Vòng 1": 0.1415,
+          "Vòng 5": 0.1876,
+          "Vòng 10": 0.3196,
+          "Vòng 20": 0.4361,
+          "Vòng 40": 0.4931
+        }
+      ]
+    }
+  ],
+  "findings": [
+    "Quan điểm (VSFC): tập trung 0.7743; FedAvg IID 0.7522 (-0.022); lệch nhãn mạnh nhất (Non-IID Dirichlet α=0.1) 0.6652 (-0.109). Ở mức lệch đó, mỗi bên tự học riêng chỉ đạt 0.3194 - học liên kết hơn +0.346. Khi dữ liệu lệch, độ lệch chuẩn giữa các seed tăng mạnh nên thứ tự giữa các mức α không ổn định.",
+    "Cảm xúc (VSMEC): tập trung 0.6182; FedAvg IID 0.5969 (-0.021); lệch nhãn mạnh nhất (Non-IID Dirichlet α=0.1) 0.445 (-0.173). Ở mức lệch đó, mỗi bên tự học riêng chỉ đạt 0.1831 - học liên kết hơn +0.262. Khi dữ liệu lệch, độ lệch chuẩn giữa các seed tăng mạnh nên thứ tự giữa các mức α không ổn định.",
+    "Sau 40 vòng mô hình chung vẫn đang tăng (vòng 20 -> 40: +0.004 đến +0.087 F1 với dữ liệu lệch) - chưa hội tụ hẳn; chênh lệch với tập trung ở trên là cận trên khi giới hạn số vòng truyền tham số.",
+    "Học liên kết chỉ chia sẻ tham số, không chia sẻ dữ liệu thô - nhưng tham số vẫn có thể rò rỉ thông tin; kết hợp với DP (experiments/dp.py) hoặc tổng hợp an toàn (secure aggregation) để bảo vệ đầy đủ.",
+    "Mô phỏng trên một máy, lớp tuyến tính trên đặc trưng đóng băng; học liên kết toàn bộ Transformer cần nhiều GPU hơn và chi phí truyền tham số lớn (~400MB/bên/vòng với ViSoBERT so với vài chục KB ở đây)."
+  ],
+  "created_at": "2026-11-01T22:36:04",
+  "env": {
+    "python": "3.14.7",
+    "platform": "Windows-11-10.0.22621-SP0",
+    "torch": "2.14.1+cu126",
+    "gpu": "NVIDIA GeForce GTX 1050 Ti"
+  }
+}
