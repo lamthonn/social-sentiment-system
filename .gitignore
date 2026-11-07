@@ -20,4 +20,5 @@ data/datasets/
 data/models/
 data/logs/
 data/backups/
+data/certs/
 data/experiments/cache/

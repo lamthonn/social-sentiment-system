@@ -39,6 +39,10 @@ class Settings(BaseSettings):
     jwt_secret: str = ""
     jwt_expire_minutes: int = 480
 
+    # Mã hóa khi lưu (security/crypto.py): khóa Fernet cho raw_posts.content và bản sao lưu.
+    # Sinh bằng: python -m security.crypto genkey. Để trống -> lưu dạng rõ (monitor sẽ cảnh báo).
+    data_encryption_key: str = ""
+
     @property
     def database_url(self) -> str:
         return (

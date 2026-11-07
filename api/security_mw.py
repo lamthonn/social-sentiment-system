@@ -25,7 +25,8 @@ RULES: list[tuple[str, re.Pattern, str | None]] = [(m, re.compile(p), r) for m, 
     ("GET", r"^/auth/me$", "viewer"),
     ("POST", r"^/auth/change-password$", "viewer"),
     ("GET", r"^/(stats|dashboard/.*|topics.*|models/runs.*|experiments)$", "viewer"),
-    ("GET", r"^/(posts.*|analysis/.*|search-queries|tracked-videos|scheduler|pipeline/runs.*)$", "analyst"),
+    ("GET", r"^/posts$", "admin"),  # /posts trả nội dung gốc chưa che PII -> chỉ admin; analyst xem /analysis/posts
+    ("GET", r"^/(posts/categories|analysis/.*|search-queries|tracked-videos|scheduler|pipeline/runs.*)$", "analyst"),
     ("POST|PUT|DELETE", r"^/(search-queries.*|tracked-videos.*|scheduler/toggle)$", "analyst"),
     ("POST", r"^/pipeline/run$", "analyst"),  # bước datasets/train kiểm tra admin trong handler
     ("GET|POST|PUT|DELETE", r"^/(users.*|audit.*|models/.+/select)$", "admin"),

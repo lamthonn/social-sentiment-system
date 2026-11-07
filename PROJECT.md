@@ -319,17 +319,23 @@ Các điểm cần chốt trước khi đi sâu (theo dõi ở T-38, chốt xong
 
 ### T-05 Nghiên cứu NLP, Text Embedding, ML, DL, Transformer
 - **Mô tả:** Tài liệu cơ sở lý thuyết. Thuyết minh giao Nguyễn Viết Doanh — cần phân công lại cho Nam hoặc Lâm.
-- **Người phụ trách:** 
+- **Người phụ trách:** Nam
 - **Giai đoạn:** GD-02
 - **Trạng thái:** Chưa bắt đầu
 - **Liên kết:** MT1
 
+**Nhật ký:**
+- [Nam · 2026-11-07 17:54] [Đề xuất điều chỉnh] (Claude thực hiện trên máy của Nam) Gán Nam phụ trách theo đề xuất chia việc QD-10.
+
 ### T-06 Nghiên cứu hàng đợi (Kafka/RabbitMQ), CSDL và chọn công nghệ
 - **Mô tả:** Lựa chọn công nghệ thu thập, truyền tải, lưu trữ. Thuyết minh giao Nguyễn Viết Doanh — cần phân công lại.
-- **Người phụ trách:** 
+- **Người phụ trách:** Lâm
 - **Giai đoạn:** GD-02
 - **Trạng thái:** Chưa bắt đầu
 - **Liên kết:** MT2, CH3, PL-04
+
+**Nhật ký:**
+- [Nam · 2026-11-07 17:54] [Đề xuất điều chỉnh] (Claude thực hiện trên máy của Nam) Gán Lâm phụ trách theo đề xuất chia việc QD-10.
 
 ### T-07 Thiết kế kiến trúc thu thập, truyền tải, tiền xử lý, lưu trữ, phân tích
 - **Mô tả:** Sơ đồ kiến trúc tổng thể và luồng xử lý dữ liệu.
@@ -418,7 +424,7 @@ Các điểm cần chốt trước khi đi sâu (theo dõi ở T-38, chốt xong
 
 ### T-16 Gán nhãn dữ liệu
 - **Mô tả:** Tạo Labeled Dataset (mục 8). Cách gán nhãn, số mẫu, người gán, đo đồng thuận: Chưa có trong thuyết minh.
-- **Người phụ trách:** 
+- **Người phụ trách:** Nam
 - **Giai đoạn:** GD-05
 - **Trạng thái:** Đang làm
 - **Liên kết:** MT3, PL-03
@@ -426,6 +432,7 @@ Các điểm cần chốt trước khi đi sâu (theo dõi ở T-38, chốt xong
 **Nhật ký:**
 - [Nam · 2026-11-01 14:56] [Kết quả] (Claude thực hiện trên máy của Nam) Đang dùng nhãn có sẵn của UIT-VSFC/UIT-VSMEC; chưa gán nhãn dữ liệu YouTube tự thu thập
 - [Nam · 2026-11-01 15:01] [Vướng mắc] (Claude thực hiện trên máy của Nam) Mô hình học trên UIT-VSFC (phản hồi sinh viên) lệch miền khi chạy trên bình luận MXH: giám sát báo JS=0.32 - cần gán nhãn dữ liệu YouTube thật
+- [Nam · 2026-11-07 17:54] [Đề xuất điều chỉnh] (Claude thực hiện trên máy của Nam) Gán Nam phụ trách theo đề xuất chia việc QD-10; cả hai cùng gán nhãn để đo độ đồng thuận.
 
 ### T-17 Xây dựng bộ Train / Validation / Test
 - **Mô tả:** Chia dữ liệu, thống kê phân bố nhãn, lưu phiên bản dataset.
@@ -528,29 +535,34 @@ Các điểm cần chốt trước khi đi sâu (theo dõi ở T-38, chốt xong
 
 **Nhật ký:**
 - [Nam · 2026-11-01 14:56] [Kết quả] (Claude thực hiện trên máy của Nam) Đăng nhập JWT, 3 vai trò, mặc định route mới chỉ admin (api/security_mw.py)
+- [Nam · 2026-11-06 10:34] [Vướng mắc] (Claude thực hiện trên máy của Nam) Phát hiện và đã sửa: GET /posts (danh sách dữ liệu thô) trả nội dung gốc chưa che PII cho cả vai trò analyst - trái quy định chỉ admin xem nội dung gốc. Nay /posts chỉ cho admin (security_mw), tab "Dữ liệu thô" ở trang Thu thập chỉ hiện với admin; analyst vẫn dùng /posts/categories và trang Dữ liệu đã phân tích.
 
 ### T-27 Bảo mật API
 - **Mô tả:** Input/request validation, rate limiting, CORS, HTTPS.
 - **Người phụ trách:** Lâm
 - **Giai đoạn:** GD-08
-- **Trạng thái:** Đang làm
+- **Trạng thái:** Hoàn thành
 - **Liên kết:** MT5, NV-10
 
 **Nhật ký:**
 - [Nam · 2026-11-01 15:01] [Kết quả] (Claude thực hiện trên máy của Nam) Mọi route cần đăng nhập + vai trò, kiểm tra dữ liệu vào bằng Pydantic, CORS giới hạn, chặn dò mật khẩu; còn thiếu rate limit chung và HTTPS
 - [Nam · 2026-11-01 20:10] [Kết quả] (Claude thực hiện trên máy của Nam) Đã thêm giới hạn tần suất theo IP (600/phút, đăng nhập 30, chạy pipeline 10) và header bảo mật; còn HTTPS khi triển khai
 - [Nam · 2026-11-01 22:36] [Bình luận] (Claude thực hiện trên máy của Nam) Middleware ghi nhật ký cả yêu cầu mang token không dùng được, tách token sai chữ ký (invalid-token, tính là tấn công) với token hết hạn (expired-token, người dùng thật hết phiên) - giảm cảnh báo nhầm khi nhiều người chung IP. Vẫn còn HTTPS.
+- [Nam · 2026-11-06 10:34] [Kết quả] (Claude thực hiện trên máy của Nam) HTTPS: security/tls.py sinh chứng chỉ tự ký (ECDSA P-256, SAN localhost/127.0.0.1, thêm IP bằng --host); Vite chạy https khi có data/certs, kèm HSTS; run.py và make api cho API chỉ nghe 127.0.0.1 nên không gọi thẳng API qua HTTP từ máy khác. Kiểm tra: TLS 1.3 (TLS_AES_256_GCM_SHA384), xác minh chứng chỉ đạt, gọi http vào cổng 5500 bị từ chối.
+- [Nam · 2026-11-06 10:34] [Bình luận] (Claude thực hiện trên máy của Nam) PostgreSQL và Adminer trong docker-compose đổi sang chỉ nghe 127.0.0.1 (trước đây mở ra cả mạng LAN). Khi triển khai thật cần reverse proxy (nginx/Caddy) với chứng chỉ do CA cấp.
 
 ### T-28 Mã hóa và bảo vệ dữ liệu
 - **Mô tả:** Mã hóa kết nối và dữ liệu lưu, quản lý bí mật, sao lưu.
 - **Người phụ trách:** Lâm
 - **Giai đoạn:** GD-08
-- **Trạng thái:** Đang làm
+- **Trạng thái:** Hoàn thành
 - **Liên kết:** MT5, NV-10, ST-01
 
 **Nhật ký:**
 - [Nam · 2026-11-01 15:01] [Kết quả] (Claude thực hiện trên máy của Nam) Mật khẩu băm PBKDF2-SHA256, bí mật (salt, JWT, DB) trong .env; chưa có HTTPS, mã hóa khi lưu, sao lưu DB
 - [Nam · 2026-11-01 20:10] [Kết quả] (Claude thực hiện trên máy của Nam) Sao lưu CSDL: python -m storage.backup (pg_dump, giữ 14 bản); còn mã hóa khi lưu và mã hóa bản sao lưu
+- [Nam · 2026-11-06 10:34] [Kết quả] (Claude thực hiện trên máy của Nam) Mã hóa khi lưu: raw_posts.content (nội dung gốc chưa che PII) dùng kiểu EncryptedText (Fernet = AES-128-CBC + HMAC-SHA256), khóa DATA_ENCRYPTION_KEY trong .env; ORM tự mã hóa/giải mã nên thu thập và pipeline không phải đổi. Bản sao lưu cũng được mã hóa (.sql.gz.enc), có lệnh khôi phục tự giải mã. Kiểm thử đầu-cuối 11/11 đạt: CSDL chỉ chứa bản mã, bước clean đọc đúng bản gốc, admin thấy nội dung gốc, analyst chỉ thấy bản đã che PII, khôi phục bản sao lưu vào CSDL nháp thành công.
+- [Nam · 2026-11-06 10:34] [Bình luận] (Claude thực hiện trên máy của Nam) Đánh đổi: không tìm kiếm SQL được trên cột đã mã hóa - tìm kiếm chuyển sang văn bản đã làm sạch (clean_text). Mất khóa là mất dữ liệu đã mã hóa: cần cất khóa riêng, không để cùng bản sao lưu. Chưa có: xoay vòng khóa, mã hóa toàn ổ đĩa ở máy chủ.
 
 ### T-29 An toàn ML Pipeline (Data Validation, Outlier Detection, Dataset Monitoring, Model Validation)
 - **Mô tả:** Cơ chế kiểm tra và giám sát an toàn cho pipeline học máy.
@@ -606,7 +618,7 @@ Các điểm cần chốt trước khi đi sâu (theo dõi ở T-38, chốt xong
 
 ### T-34 So sánh mô hình và đánh giá độ chính xác cảm xúc, xu hướng
 - **Mô tả:** Bảng so sánh mô hình; đánh giá ưu, nhược điểm. Cần phân công.
-- **Người phụ trách:** 
+- **Người phụ trách:** Nam
 - **Giai đoạn:** GD-10
 - **Trạng thái:** Đang làm
 - **Liên kết:** MT7, CH1, CH2, PL-06
@@ -614,6 +626,7 @@ Các điểm cần chốt trước khi đi sâu (theo dõi ở T-38, chốt xong
 **Nhật ký:**
 - [Nam · 2026-11-01 15:01] [Kết quả] (Claude thực hiện trên máy của Nam) Đã có bảng so sánh 6 lần huấn luyện (R-01…R-06) cho quan điểm và cảm xúc; chưa đánh giá phát hiện xu hướng (cần dữ liệu thật)
 - [Nam · 2026-11-01 20:10] [Kết quả] (Claude thực hiện trên máy của Nam) Đã có bảng so sánh 10 lần huấn luyện (5 mô hình × 2 bài toán) + LLM; chưa đánh giá phát hiện xu hướng trên dữ liệu thật
+- [Nam · 2026-11-07 17:54] [Đề xuất điều chỉnh] (Claude thực hiện trên máy của Nam) Gán Nam phụ trách theo đề xuất chia việc QD-10.
 
 ### T-35 Đánh giá các cơ chế an ninh, an toàn
 - **Mô tả:** Kịch bản phát hiện → bảo vệ → ghi nhật ký → cảnh báo; tỉ lệ False Positive/Negative. Cần phân công.
@@ -1415,3 +1428,20 @@ Model M-21. Đang tăng/giảm khi lệch ≥ 50%; Mới nổi khi trước đó
 - **Lý do:** Theo đề xuất ở NV-02 và yêu cầu bảo vệ dữ liệu ở NV-09
 
 Người xem: chỉ số liệu tổng hợp. Phân tích viên: dữ liệu chi tiết đã che SĐT/email/@tên, cấu hình thu thập, chạy pipeline. Quản trị: nội dung gốc, huấn luyện, tài khoản, nhật ký.
+
+### QD-10 Chia việc theo module và quy trình làm việc 2 người (thư mục team/)
+- **Ngày:** 2026-11-07
+- **Người chốt:** Chưa duyệt (Claude đề xuất, Nam và Lâm cùng chốt)
+- **Lý do:** Hai người cùng vibe code với Claude; cần ranh giới rõ để làm song song không xung đột (đề xuất)
+
+Lâm: thu thập, lưu trữ thô, hạ tầng chạy (collector/, bộ tiền xử lý cleaner/teencode/tokenizer, tests/, run.py, docker-compose.yml, trang Thu thập); đầu việc T-01, T-02, T-03, T-04, T-06, T-11, T-12, T-13, T-37, T-46. Nam: học máy, phân tích, an ninh, webapp, quản lý (preprocessing/text.py, pipeline/, models/, experiments/, security/, api/app_routes.py, các trang webapp còn lại, tools/); đầu việc T-05, T-16, T-31, T-32, T-34, T-36, T-38, T-42, T-47, T-49; T-16 cả hai cùng gán nhãn để đo độ đồng thuận. Mỗi người một sổ việc riêng (team/nam.md, team/lam.md), mỗi đầu việc một nhánh <tên>/T-xx, ghép vào main qua pull request. File dùng chung theo quy ước ở team/HUONG_DAN_VIBE_CODE.md mục 4.
+
+### QD-11 Hợp nhất hai bộ tiền xử lý tiếng Việt
+- **Ngày:** 2026-11-07
+- **Người chốt:** Chưa duyệt (Claude đề xuất, cần Nam và Lâm chốt)
+- **Lý do:** Hiện có 2 bộ làm sạch chạy song song do làm độc lập: preprocessing/text.py (Nam) và preprocessing/pipeline.py (Lâm) (đề xuất)
+
+Hiện trạng: pipeline học máy (huấn luyện, dự đoán, thực nghiệm) dùng preprocessing/text.py - có che PII, chuẩn hóa dấu, teencode, cờ spam/ngôn ngữ, 11 kiểm thử, mọi mô hình R-xx đã huấn luyện qua bộ này (đổi bộ làm sạch thì phải huấn luyện lại). preprocessing/pipeline.py của Lâm (giải mã HTML, tách câu, tách từ underthesea) chưa được pipeline dùng. Đề xuất (đề xuất): giữ text.py là điểm vào duy nhất cho dữ liệu đi vào mô hình; đưa phần còn thiếu của bộ Lâm vào (html.unescape, tách câu) qua PR của Lâm vào text.py kèm kiểm thử; tách từ cho PhoBERT dùng chung một hàm (hiện models/sentiment/train.word_segment và preprocessing/tokenizer.tokenize trùng nhau). Phương án khác: giữ hai bộ nhưng ghi rõ bộ của Lâm chỉ dùng cho phân tích/khám phá dữ liệu.
+
+**Nhật ký:**
+- [Nam · 2026-11-07 17:54] [Bình luận] (Claude thực hiện trên máy của Nam) Lưu ý khi hợp nhất: docstring preprocessing/tokenizer.py ghi ViSoBERT cũng cần tách từ - không đúng. ViSoBERT đọc theo âm tiết (không tách từ); chỉ PhoBERT cần tách từ underthesea. Pipeline ghi điều này trong pipeline_meta.json của từng mô hình (word_segment).

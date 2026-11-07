@@ -129,12 +129,15 @@ def main() -> None:
     run(sys.executable, "-m", "storage.migrate")
 
     step("Chạy API + frontend (Ctrl+C để dừng)")
+    # Có chứng chỉ (python -m security.tls) -> frontend chạy https, API chỉ nghe trong máy (T-27)
+    https = (ROOT / "data" / "certs" / "cert.pem").exists()
+    scheme, api_host = ("https", "127.0.0.1") if https else ("http", "0.0.0.0")
     procs = [
         subprocess.Popen([sys.executable, "-m", "uvicorn", "api.main:app", "--reload",
-                          "--host", "0.0.0.0", "--port", "8000"], cwd=ROOT),
+                          "--host", api_host, "--port", "8000"], cwd=ROOT),
         subprocess.Popen([NPM, "run", "dev"], cwd=FRONTEND),
     ]
-    print("\n  Webapp   http://localhost:5500"
+    print(f"\n  Webapp   {scheme}://localhost:5500"
           "\n  API      http://localhost:8000/health"
           "\n  Adminer  http://localhost:8080\n", flush=True)
     try:
@@ -143,7 +146,7 @@ def main() -> None:
                 break
             time.sleep(0.5)
         if port_open(5500):
-            webbrowser.open("http://localhost:5500")
+            webbrowser.open(f"{scheme}://localhost:5500")
         # Dừng cả cụm nếu 1 tiến trình chết (VD lỗi code API, cổng bị chiếm)
         while all(p.poll() is None for p in procs):
             time.sleep(1)

@@ -119,9 +119,9 @@ Các bảng cấu hình thu thập (`search_queries`, `tracked_videos`, `schedul
 
 | Lớp | Biện pháp đã có | Còn thiếu |
 |---|---|---|
-| Dữ liệu | Băm tác giả khi thu thập; che SĐT/email/@tên; sao lưu `python -m storage.backup`; bí mật trong `.env` | Mã hóa khi lưu, HTTPS, mã hóa bản sao lưu |
+| Dữ liệu | Băm tác giả khi thu thập; che SĐT/email/@tên; nội dung gốc `raw_posts.content` mã hóa khi lưu (Fernet, `security/crypto.py`); sao lưu có mã hóa `python -m storage.backup`; bí mật trong `.env`; CSDL chỉ nghe 127.0.0.1 | Xoay vòng khóa; mã hóa toàn ổ đĩa (BitLocker) ở máy chủ |
 | Ứng dụng | Đăng nhập JWT, 3 vai trò, mật khẩu PBKDF2-SHA256, chặn dò mật khẩu, header bảo mật | Phiên làm mới token, 2 lớp xác thực |
-| API | Mọi route cần quyền (mặc định chỉ quản trị), giới hạn tần suất theo IP, kiểm tra dữ liệu vào (Pydantic), chỉ chạy lệnh pipeline cố định | API gateway |
+| API | HTTPS (TLS 1.3, chứng chỉ tự ký `security/tls.py`, HSTS); API chỉ nghe 127.0.0.1 sau Vite; mọi route cần quyền (mặc định chỉ quản trị), giới hạn tần suất theo IP, kiểm tra dữ liệu vào (Pydantic), chỉ chạy lệnh pipeline cố định | Chứng chỉ do CA cấp + reverse proxy khi triển khai thật; API gateway |
 | Mô hình | Giám sát trôi phân phối nhãn và độ tin cậy; kiểm tra rò rỉ dataset; thực nghiệm đầu độc dữ liệu + phòng vệ; thực nghiệm DP-SGD; mô phỏng học liên kết (FedAvg); kiểm thử độ bền | DP cho toàn bộ Transformer; học liên kết thật nhiều máy; chống trích xuất mô hình ngoài giới hạn tần suất |
 | Lưu vết | `audit_logs`: đăng nhập, thao tác ghi, xem dữ liệu chi tiết, bị từ chối, vượt giới hạn, token giả / hết hạn | Chính sách thời gian lưu nhật ký |
 | Phát hiện, cảnh báo | `security/detect.py`: luật cửa sổ 10 phút và 24 giờ trên `audit_logs` (dò mật khẩu nhanh/chậm, thử nhiều tài khoản, dò quyền, token giả, truy xuất hàng loạt, vượt tần suất); chạy trong bước monitor, cảnh báo ở Tổng quan (chi tiết chỉ quản trị thấy). Đánh giá: `experiments/security_eval.py` | Phát hiện bất thường theo hồ sơ người dùng; gửi cảnh báo qua email/chat |

@@ -14,6 +14,7 @@ from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import aliased
 
 from pipeline import DATA_DIR, ROOT
+from preprocessing.text import clean_text
 from security.auth import (ROLES, audit, create_token, hash_password, login_blocked, record_login_failure,
                            reset_login_failures, validate_password_strength, verify_password)
 from security.detect import redact_for_role
@@ -233,7 +234,9 @@ def analysis_posts(request: Request, page: int = Query(1, ge=1), page_size: int 
                  .outerjoin(sa, and_(sa.raw_post_id == RawPost.id, sa.task == "sentiment", sa.model_name == sel["sentiment"]))
                  .outerjoin(ea, and_(ea.raw_post_id == RawPost.id, ea.task == "emotion", ea.model_name == sel["emotion"])))
         if q:
-            query = query.where(or_(CleanPost.clean_text.ilike(f"%{q.lower()}%"), RawPost.content.ilike(f"%{q}%")))
+            # chỉ tìm trên văn bản đã làm sạch: nội dung gốc được mã hóa khi lưu (T-28) nên SQL không đọc được
+            needle = clean_text(q).text or q.lower()
+            query = query.where(CleanPost.clean_text.ilike(f"%{needle}%"))
         if category:
             query = query.where(RawPost.category == category)
         if platform:

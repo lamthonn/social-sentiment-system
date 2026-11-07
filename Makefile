@@ -16,7 +16,7 @@ migrate:  # tạo bảng mới + nâng cấp bảng cũ (chạy lại nhiều l�
 	python -m storage.migrate
 
 api:
-	uvicorn api.main:app --reload --host 0.0.0.0 --port 8000
+	uvicorn api.main:app --reload --host 127.0.0.1 --port 8000  # chỉ trong máy; trình duyệt đi qua Vite (https khi có data/certs)
 
 frontend-install:
 	npm install --prefix frontend

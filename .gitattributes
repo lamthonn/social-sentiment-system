@@ -1,0 +1,9 @@
+# Thống nhất ký tự xuống dòng giữa Windows (Nam) và WSL/Linux (Lâm): lưu LF trong repo và trên đĩa,
+# để một sửa đổi nhỏ không thành xung đột cả file. Xem team/HUONG_DAN_VIBE_CODE.md.
+* text=auto eol=lf
+*.bat text eol=crlf
+*.cmd text eol=crlf
+*.docx binary
+*.png binary
+*.jpg binary
+*.npy binary
