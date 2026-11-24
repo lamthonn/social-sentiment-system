@@ -15,6 +15,11 @@ Cả 2 cách đều đọc cấu hình TRỰC TIẾP TỪ DB mỗi lượt chạ
 thêm/sửa/xóa video theo dõi hay từ khóa search qua UI có hiệu lực ngay ở lượt chạy kế
 tiếp, không cần restart.
 
+Nguồn video mỗi lượt: video theo dõi cố định (tracked_videos), kênh theo dõi (tracked_channels -
+rẻ, ~2 unit + 1 unit/video), video thịnh hành (COLLECTOR_TRENDING_ENABLED, 1 unit) và từ khóa
+search (đắt nhất). Mỗi lượt còn lưu thông tin + snapshot số liệu video (video_meta,
+video_stats_snapshots) để phân tích xu hướng theo thời gian.
+
 ⚠️ Quota YouTube: mỗi từ khóa trong search_queries tốn 100 unit/lượt chạy (bất kể
 max_videos). VD interval mặc định 60 phút (24 lượt/ngày) x 1 từ khóa = 2.400 unit/ngày
 cho riêng phần search, cộng thêm phần lấy comment (1 unit/video) - vẫn thoải mái trong
@@ -30,10 +35,15 @@ from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.schedulers.blocking import BlockingScheduler
 from sqlalchemy import select
 
-from collector.pipeline import collect_many
+from collector.pipeline import (
+    collect_many,
+    collect_youtube_channel,
+    collect_youtube_trending,
+    discover_and_collect_youtube,
+)
 from config.settings import settings
 from storage.database import SessionLocal
-from storage.models import SchedulerState, SearchQuery, TrackedVideo
+from storage.models import SchedulerState, SearchQuery, TrackedChannel, TrackedVideo
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -66,30 +76,59 @@ def _load_search_queries() -> list[dict]:
         ]
 
 
+def _load_tracked_channels() -> list[dict]:
+    """Kênh YouTube đang bật theo dõi: mỗi kênh lấy `max_videos` video mới nhất mỗi lượt."""
+    with SessionLocal() as session:
+        rows = session.execute(select(TrackedChannel).where(TrackedChannel.enabled.is_(True))).scalars().all()
+        return [
+            {"channel_id": row.channel_id, "label": row.label, "max_videos": row.max_videos}
+            for row in rows
+        ]
+
+
+def _safe(source: str, fn, *args, **kwargs) -> None:
+    """Chạy 1 nguồn thu thập; lỗi (hết quota, mạng...) chỉ ghi log để các nguồn còn lại vẫn chạy tiếp."""
+    try:
+        results = fn(*args, **kwargs)
+        logger.info("[%s] kết quả: %s", source, results)
+    except Exception:
+        logger.exception("[%s] Lỗi - bỏ qua nguồn này trong lượt hiện tại", source)
+
+
 def run_once() -> None:
     """Chạy 1 lượt thu thập ngay, đọc cấu hình (video theo dõi + từ khóa search) từ DB tại
     thời điểm gọi. Dùng chung cho cả CLI (`run_forever`) lẫn scheduler chạy trong API."""
     platform_video_ids = _load_tracked_videos()
     search_queries = _load_search_queries()
+    channels = _load_tracked_channels()
 
-    if not platform_video_ids and not search_queries:
-        logger.warning("Chưa có video ID hay từ khóa nào được cấu hình (qua UI) - bỏ qua lượt này")
+    if not platform_video_ids and not search_queries and not channels and not settings.collector_trending_enabled:
+        logger.warning("Chưa có video, kênh hay từ khóa nào được cấu hình (qua UI) - bỏ qua lượt này")
         return
 
+    # incremental=True: mỗi lượt chỉ lấy comment mới (dừng khi gặp trang không có gì mới) -> tiết kiệm quota
     for platform, video_ids in platform_video_ids.items():
         logger.info("[%s] Bắt đầu thu thập định kỳ cho %d video", platform, len(video_ids))
-        results = collect_many(platform, video_ids)
-        logger.info("[%s] Kết quả: %s", platform, results)
+        _safe(platform, collect_many, platform, video_ids, incremental=True)
 
-    if search_queries:
-        from collector.pipeline import discover_and_collect_youtube
+    for ch in channels:
+        _safe(
+            f"youtube-channel {ch['channel_id']}", collect_youtube_channel,
+            ch["channel_id"], max_videos=ch["max_videos"], category=ch["label"],
+        )
 
-        for sq in search_queries:
-            logger.info("[youtube-search] Tìm video mới cho từ khóa '%s'", sq["query"])
-            results = discover_and_collect_youtube(
-                sq["query"], max_videos=sq["max_videos"], published_within_days=sq["days"],
-            )
-            logger.info("[youtube-search] '%s' kết quả: %s", sq["query"], results)
+    if settings.collector_trending_enabled:
+        _safe(
+            "youtube-trending", collect_youtube_trending,
+            region_code=settings.collector_trending_region, max_videos=settings.collector_trending_max_videos,
+        )
+
+    for sq in search_queries:
+        logger.info("[youtube-search] Tìm video mới cho từ khóa '%s'", sq["query"])
+        _safe(
+            f"youtube-search '{sq['query']}'", discover_and_collect_youtube,
+            sq["query"], max_videos=sq["max_videos"], published_within_days=sq["days"], incremental=True,
+        )
 
 
 def run_forever() -> None:

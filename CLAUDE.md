@@ -8,35 +8,31 @@ Research prototype for a Vietnamese master's/NCKH project: collect public social
 
 - **Done:** config, DB/ORM, anonymization, collectors (YouTube working; TikTok **never tested with real keys**), scheduler (runs inside the API, toggled from the UI).
 - **Done:** a full pipeline (`pipeline/`): preprocessing, datasets (UIT-VSFC, UIT-VSMEC), training of TF-IDF and ViSoBERT models, prediction, trends and monitoring. Also the management webapp, with login, RBAC and an audit log.
-- **Not yet:** real collected data (needs `YOUTUBE_API_KEY` in `.env`), labeled gold data from collected posts, differential privacy experiments (QD-06), BERTopic.
+- **Not yet:** real collected data (needs `YOUTUBE_API_KEY` in `.env`), labeled gold data from collected posts, real trend *prediction* (current trends are rule-based), BERTopic.
 
-Code comments, docstrings, log messages, API error messages and UI strings are in Vietnamese — keep new ones consistent. `docs/` holds research/design write-ups (business analysis, crawling Q&A, target dynamic-crawling architecture) that describe intended future design, not current code.
+Code comments, docstrings, log messages, API error messages and UI strings are in Vietnamese — keep new ones consistent. The only project documents are `TONG_QUAN.md` (idea, design, usage, results, who owns what) and `LICH_SU_CHINH_SUA.md` (change history). Do not create other `.md` files.
 
 ## Two-person workflow (read first)
 
-Two people, Nam and Lâm, each vibe-code with their own Claude. **Before changing anything, follow [team/HUONG_DAN_VIBE_CODE.md](team/HUONG_DAN_VIBE_CODE.md).** Its section 6 holds the rules for Claude. In short:
+Two people, Nam and Lâm, each vibe-code with their own Claude. Ownership and conventions are in `TONG_QUAN.md` section 6. In short:
 
 - **Identify the user.** Use what they say, or `git config user.name`: `namtruong03`/`nambanhboi` → Nam, `Vũ Vương Lâm`/`lamthonn` → Lâm. Ask if unclear.
-- **Read the user's task file at session start.** That is `team/nam.md` or `team/lam.md`. Edit only that file; never edit the other person's.
-- **Stay in the user's own modules** (section 1). Shared files (`storage/models.py`, `storage/migrate.py`, `api/main.py`, `api/security_mw.py`, `config/settings.py`, `requirements.txt`, `frontend/src/App.tsx`, `frontend/src/api.ts`, `Makefile`, `README.md`, this file) follow the append-only conventions in section 4.
-- **One branch per task** (`nam/T-xx-...`, `lam/T-xx-...`), merged into `main` via PR. Merge `origin/main` at the start of each session.
-- **Don't build a second version of something the other person owns.** Write it under "Cần người kia" in the user's task file instead. Example: the two preprocessing modules, see QD-11 in `PROJECT.md`.
+- **Stay in the user's own modules.** Lâm: collection, raw storage, run infrastructure (`collector/`, `preprocessing/cleaner.py` etc., `tests/`, `run.py`, `start.bat`, `docker-compose.yml`, the Collector config page). Nam: ML, analysis, security, webapp (`preprocessing/text.py`, `pipeline/`, `models/`, `experiments/`, `security/`, `api/app_routes.py`, `api/security_mw.py`, other frontend pages). Ask before editing the other person's files and say so in the PR.
+- **Shared files** (`storage/models.py`, `storage/migrate.py`, `api/main.py`, `api/security_mw.py`, `config/settings.py`, `.env.example`, `requirements.txt`, `frontend/src/App.tsx`, `frontend/src/api.ts`, `Makefile`, this file): append only at the end of your own section, never reorder or reformat. `UPGRADES` SQL must be idempotent. A new endpoint needs a line in `api/security_mw.py` `RULES`, otherwise it is admin-only.
+- **One branch per task** (`nam/T-xx-...`, `lam/T-xx-...`), merged into `main` via PR. Merge `origin/main` at the start of each session. Never force-push, never commit `.env`. Commit messages start with `Nam:` or `Lâm:`.
+- **Don't build a second version of something the other person owns.** The two preprocessing modules are the known case: only `preprocessing/text.py` feeds models; merging them is undecided (`TONG_QUAN.md` section 1.4).
+- **Before committing:** `python -m pytest -q`, and `npm run build --prefix frontend` if the frontend changed.
 
-## Project management (`PROJECT.md` + `tools/`)
+## Documentation and change log
 
-`PROJECT.md` at the repo root is the single source of project status. It covers overview and phases (GD-xx = research contents from section 7 of the proposal), business analysis (NV-xx), tasks (T-xx), pipeline steps (PL-xx), data sources (DS), cleaning steps (CL), storage (ST), models (M), training runs (R), application problems (BT), and the decision log (QD). The format rules are in the HTML comment at the top of the file:
-- one `### ID Title` block per object, with attributes as `- **Key:** value`;
-- log lines are append-only: `- [Nam · YYYY-MM-DD HH:MM] [Kind] text`;
-- IDs are never reused;
-- no aggregate numbers and no deadlines are stored in the file.
-
-The UI is `node tools/server.js` (Node built-ins only, port 8765; see `tools/README.md`). It patches only the lines of the edited block, so keep the format when editing by hand.
-
-Record each training run as a new `R-xx` block with its metrics (Accuracy, F1-macro, Precision, Recall). Content must come from the proposal (`TM_final.docx`): mark your own suggestions "(đề xuất)", and write "Chưa có trong thuyết minh" where the proposal is silent.
+- Keep `TONG_QUAN.md` current when design, schema, commands or results change (training runs go in its results table).
+- **Every change to the project gets a new entry at the top of `LICH_SU_CHINH_SUA.md`**: date, who (Nam or Lâm, "cùng Claude" if Claude did it), what changed, main files, and anything the other person must do (run migrate, add `.env` variables). Add the entry in the same change, never edit older entries.
+- Mark your own suggestions "(đề xuất)" and write "Chưa có trong thuyết minh" where the proposal (`TM_final.docx`) is silent.
+- `tools/` read and wrote the deleted `PROJECT.md` and no longer works; leave it unless asked.
 
 ## Commands
 
-Run everything from the repo root (`config/settings.py` loads `.env` relative to the CWD). Activate `.venv` first. `HUONG_DAN_CHAY.md` is the detailed run guide (written for WSL) with troubleshooting.
+Run everything from the repo root (`config/settings.py` loads `.env` relative to the CWD). Activate `.venv` first. `TONG_QUAN.md` section 3 has the run guide and common errors.
 
 ```bash
 cp .env.example .env          # set POSTGRES_PASSWORD, ANONYMIZATION_SALT, JWT_SECRET, YOUTUBE_API_KEY

@@ -12,6 +12,8 @@ from api.schemas import (
     SearchQueryIn,
     SearchQueryOut,
     StatsResponse,
+    TrackedChannelIn,
+    TrackedChannelOut,
     TrackedVideoIn,
     TrackedVideoOut,
 )
@@ -20,7 +22,7 @@ from api.security_mw import AuthMiddleware
 from collector import scheduler as job_scheduler
 from config.settings import settings
 from storage.database import get_session
-from storage.models import AnalysisResult, RawPost, SearchQuery, TrackedVideo
+from storage.models import AnalysisResult, RawPost, SearchQuery, TrackedChannel, TrackedVideo
 
 app = FastAPI(title="Social Sentiment System API", version="0.2.0")
 
@@ -211,5 +213,61 @@ def delete_tracked_video(tracked_video_id: int, session: Session = Depends(get_s
     row = session.get(TrackedVideo, tracked_video_id)
     if row is None:
         raise HTTPException(status_code=404, detail="Không tìm thấy video")
+    session.delete(row)
+    session.commit()
+
+
+def _resolve_channel_id(value: str) -> str:
+    """UCxxxx / URL kênh / @handle -> UCxxxx. Lỗi tra cứu (handle sai, hết quota...) trả về 400."""
+    from collector.youtube_client import YouTubeAPIError, resolve_channel_id
+
+    try:
+        return resolve_channel_id(value)
+    except YouTubeAPIError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+
+
+@app.get("/tracked-channels", response_model=list[TrackedChannelOut])
+def list_tracked_channels(session: Session = Depends(get_session)):
+    return session.execute(select(TrackedChannel).order_by(TrackedChannel.id)).scalars().all()
+
+
+@app.post("/tracked-channels", response_model=TrackedChannelOut, status_code=201)
+def create_tracked_channel(payload: TrackedChannelIn, session: Session = Depends(get_session)):
+    channel_id = _resolve_channel_id(payload.channel_id)
+    if session.execute(select(TrackedChannel).where(TrackedChannel.channel_id == channel_id)).first():
+        raise HTTPException(status_code=409, detail="Kênh này đã được theo dõi")
+
+    row = TrackedChannel(
+        channel_id=channel_id, label=payload.label, max_videos=payload.max_videos, enabled=payload.enabled,
+    )
+    session.add(row)
+    session.commit()
+    session.refresh(row)
+    return row
+
+
+@app.put("/tracked-channels/{tracked_channel_id}", response_model=TrackedChannelOut)
+def update_tracked_channel(tracked_channel_id: int, payload: TrackedChannelIn, session: Session = Depends(get_session)):
+    row = session.get(TrackedChannel, tracked_channel_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy kênh")
+
+    # chỉ tra lại khi người dùng đổi ô kênh (tránh tốn quota khi chỉ bật/tắt hay sửa ghi chú)
+    if payload.channel_id.strip() != row.channel_id:
+        row.channel_id = _resolve_channel_id(payload.channel_id)
+    row.label = payload.label
+    row.max_videos = payload.max_videos
+    row.enabled = payload.enabled
+    session.commit()
+    session.refresh(row)
+    return row
+
+
+@app.delete("/tracked-channels/{tracked_channel_id}", status_code=204)
+def delete_tracked_channel(tracked_channel_id: int, session: Session = Depends(get_session)):
+    row = session.get(TrackedChannel, tracked_channel_id)
+    if row is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy kênh")
     session.delete(row)
     session.commit()

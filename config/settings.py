@@ -30,6 +30,11 @@ class Settings(BaseSettings):
     # còn nằm trong .env.
     youtube_api_key: str = ""
     collector_poll_interval_minutes: int = 60
+    # Lâm: lấy cả trả lời (reply) của bình luận; thêm video đang thịnh hành (videos.list chart=mostPopular, 1 unit/lượt)
+    collector_fetch_replies: bool = True
+    collector_trending_enabled: bool = False
+    collector_trending_region: str = "VN"
+    collector_trending_max_videos: int = 20
 
     # TikTok (cần đăng ký & được duyệt Research API trước)
     tiktok_client_key: str = ""

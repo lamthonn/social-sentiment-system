@@ -60,7 +60,7 @@ def fetch_comment_threads(video_id: str, page_token: str | None = None, max_resu
     Tối đa 100 comment/lần gọi, tốn 1 unit quota/lần (quota mặc định: 10.000 unit/ngày).
     """
     params = {
-        "part": "snippet",
+        "part": "snippet,replies",  # replies: kèm tối đa 5 trả lời đầu mỗi bình luận, không tốn thêm quota
         "videoId": video_id,
         "maxResults": max_results,
         "order": "time",
@@ -82,6 +82,78 @@ def iter_comment_threads(video_id: str, max_pages: int | None = None):
         pages += 1
         if not page_token or (max_pages is not None and pages >= max_pages):
             break
+
+
+def iter_replies(parent_id: str):
+    """Generator duyệt TẤT CẢ trả lời của 1 bình luận gốc (comments.list, 1 unit/trang tối đa 100)."""
+    page_token = None
+    while True:
+        params = {"part": "snippet", "parentId": parent_id, "maxResults": 100, "textFormat": "plainText"}
+        if page_token:
+            params["pageToken"] = page_token
+        data = _get("comments", params)
+        yield from data.get("items", [])
+        page_token = data.get("nextPageToken")
+        if not page_token:
+            break
+
+
+def fetch_videos(video_ids: list[str]) -> list[dict]:
+    """Thông tin + số liệu (snippet, statistics) của nhiều video - 1 unit/lần gọi, tối đa 50 video/lần."""
+    items: list[dict] = []
+    for start in range(0, len(video_ids), 50):
+        chunk = video_ids[start:start + 50]
+        data = _get("videos", {"part": "snippet,statistics", "id": ",".join(chunk)})
+        items.extend(data.get("items", []))
+    return items
+
+
+def fetch_most_popular(region_code: str = "VN", max_results: int = 20) -> list[dict]:
+    """Video đang thịnh hành của 1 quốc gia (videos.list chart=mostPopular) - 1 unit/lần, đã kèm
+    snippet + statistics nên không cần gọi thêm fetch_videos."""
+    data = _get("videos", {
+        "part": "snippet,statistics", "chart": "mostPopular",
+        "regionCode": region_code, "maxResults": min(max_results, 50),
+    })
+    return data.get("items", [])
+
+
+def fetch_channel_upload_ids(channel_id: str, max_results: int = 10) -> list[str]:
+    """ID các video mới nhất của 1 kênh (playlistItems.list, 1 unit/lần).
+
+    Playlist uploads của kênh `UCxxxx` luôn có ID `UUxxxx` nên khỏi gọi channels.list để tra.
+    """
+    data = _get("playlistItems", {
+        "part": "contentDetails", "playlistId": "UU" + channel_id[2:], "maxResults": min(max_results, 50),
+    })
+    return [item["contentDetails"]["videoId"] for item in data.get("items", [])]
+
+
+def resolve_channel_id(value: str) -> str:
+    """Nhận ID kênh (UCxxxx), URL /channel/UCxxxx, hoặc @handle / URL /@handle -> trả về ID kênh UCxxxx.
+
+    Chỉ trường hợp @handle mới gọi API (channels.list forHandle, 1 unit).
+    """
+    value = value.strip()
+    parsed = urlparse(value)
+    path = parsed.path if parsed.netloc else value
+    segments = [seg for seg in path.split("/") if seg]
+    if not segments:
+        raise YouTubeAPIError(f"Không nhận ra kênh YouTube từ '{value}'")
+
+    if segments[0] == "channel" and len(segments) > 1:
+        return segments[1]
+    if segments[0].startswith("UC") and len(segments[0]) == 24:
+        return segments[0]
+
+    handle = next((seg for seg in segments if seg.startswith("@")), None)
+    if handle is None:
+        raise YouTubeAPIError(f"Không nhận ra kênh YouTube từ '{value}' (cần ID UCxxxx hoặc @handle)")
+    data = _get("channels", {"part": "id", "forHandle": handle})
+    items = data.get("items", [])
+    if not items:
+        raise YouTubeAPIError(f"Không tìm thấy kênh {handle}")
+    return items[0]["id"]
 
 
 def search_videos(

@@ -112,6 +112,18 @@ export interface TrackedVideo {
 
 export type TrackedVideoInput = Omit<TrackedVideo, 'id' | 'created_at'>
 
+export interface TrackedChannel {
+  id: number
+  platform: string
+  channel_id: string
+  label: string | null
+  max_videos: number
+  enabled: boolean
+  created_at: string
+}
+
+export type TrackedChannelInput = Omit<TrackedChannel, 'id' | 'platform' | 'created_at'>
+
 export interface SchedulerStatus {
   enabled: boolean
   poll_interval_minutes: number
@@ -145,6 +157,15 @@ export const api = {
     update: (id: number, payload: TrackedVideoInput) =>
       request<TrackedVideo>(`/tracked-videos/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
     remove: (id: number) => request<void>(`/tracked-videos/${id}`, { method: 'DELETE' }),
+  },
+
+  trackedChannels: {
+    list: () => request<TrackedChannel[]>('/tracked-channels'),
+    create: (payload: TrackedChannelInput) =>
+      request<TrackedChannel>('/tracked-channels', { method: 'POST', body: JSON.stringify(payload) }),
+    update: (id: number, payload: TrackedChannelInput) =>
+      request<TrackedChannel>(`/tracked-channels/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
+    remove: (id: number) => request<void>(`/tracked-channels/${id}`, { method: 'DELETE' }),
   },
 
   scheduler: {
