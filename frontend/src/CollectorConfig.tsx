@@ -21,6 +21,8 @@ import {
   type SchedulerStatus,
   type SearchQuery,
   type SearchQueryInput,
+  type TrackedChannel,
+  type TrackedChannelInput,
   type TrackedVideo,
   type TrackedVideoInput,
 } from './api'
@@ -360,6 +362,138 @@ function TrackedVideosPanel() {
   )
 }
 
+function TrackedChannelsPanel() {
+  const [data, setData] = useState<TrackedChannel[]>([])
+  const [loading, setLoading] = useState(false)
+  const [modalOpen, setModalOpen] = useState(false)
+  const [editing, setEditing] = useState<TrackedChannel | null>(null)
+  const [form] = Form.useForm<TrackedChannelInput>()
+
+  const load = () => {
+    setLoading(true)
+    api.trackedChannels
+      .list()
+      .then(setData)
+      .catch(() => message.error('Không tải được danh sách kênh'))
+      .finally(() => setLoading(false))
+  }
+
+  useEffect(load, [])
+
+  const openCreate = () => {
+    setEditing(null)
+    form.resetFields()
+    setModalOpen(true)
+  }
+
+  const openEdit = (row: TrackedChannel) => {
+    setEditing(row)
+    form.setFieldsValue(row)
+    setModalOpen(true)
+  }
+
+  const handleSubmit = async () => {
+    const values = await form.validateFields()
+    try {
+      if (editing) {
+        await api.trackedChannels.update(editing.id, values)
+      } else {
+        await api.trackedChannels.create(values)
+      }
+      setModalOpen(false)
+      load()
+    } catch (err) {
+      message.error(errorMessage(err, 'Lưu thất bại'))
+    }
+  }
+
+  const handleDelete = async (id: number) => {
+    try {
+      await api.trackedChannels.remove(id)
+      load()
+    } catch {
+      message.error('Xóa thất bại')
+    }
+  }
+
+  const handleToggleEnabled = async (row: TrackedChannel, enabled: boolean) => {
+    try {
+      await api.trackedChannels.update(row.id, {
+        channel_id: row.channel_id,
+        label: row.label,
+        max_videos: row.max_videos,
+        enabled,
+      })
+      load()
+    } catch {
+      message.error('Cập nhật thất bại')
+    }
+  }
+
+  const columns = [
+    { title: 'Kênh', dataIndex: 'channel_id', key: 'channel_id' },
+    {
+      title: 'Ghi chú / chủ đề', dataIndex: 'label', key: 'label',
+      render: (value: string | null) => value || <Text type="secondary">—</Text>,
+    },
+    { title: 'Số video mới nhất/lượt', dataIndex: 'max_videos', key: 'max_videos', width: 170 },
+    {
+      title: 'Bật', dataIndex: 'enabled', key: 'enabled', width: 80,
+      render: (value: boolean, row: TrackedChannel) => (
+        <Switch checked={value} onChange={(checked) => handleToggleEnabled(row, checked)} />
+      ),
+    },
+    {
+      title: '', key: 'actions', width: 140,
+      render: (_: unknown, row: TrackedChannel) => (
+        <Space>
+          <Button size="small" onClick={() => openEdit(row)}>Sửa</Button>
+          <Popconfirm title="Xóa kênh này?" onConfirm={() => handleDelete(row.id)}>
+            <Button size="small" danger>Xóa</Button>
+          </Popconfirm>
+        </Space>
+      ),
+    },
+  ]
+
+  return (
+    <div>
+      <Space style={{ marginBottom: 16 }}>
+        <Button type="primary" icon={<PlusOutlined />} onClick={openCreate}>
+          Thêm kênh
+        </Button>
+      </Space>
+      <Table rowKey="id" columns={columns} dataSource={data} loading={loading} pagination={false} scroll={{ x: true }} />
+      <Modal
+        title={editing ? 'Sửa kênh theo dõi' : 'Thêm kênh theo dõi'}
+        open={modalOpen}
+        onCancel={() => setModalOpen(false)}
+        onOk={handleSubmit}
+        destroyOnClose
+      >
+        <Form form={form} layout="vertical" initialValues={{ max_videos: 10, enabled: true }}>
+          <Form.Item
+            name="channel_id"
+            label="Kênh YouTube"
+            rules={[{ required: true, message: 'Nhập @handle, URL kênh hoặc ID kênh' }]}
+          >
+            <Input placeholder="VD: @vtv24, https://www.youtube.com/@vtv24 hoặc UCxxxxxxxxxxxxxxxxxxxxxx" />
+          </Form.Item>
+          <Form.Item name="label" label="Ghi chú / chủ đề (tùy chọn)">
+            <Input placeholder="VD: tin tức — dùng làm chủ đề (category) của bình luận" />
+          </Form.Item>
+          <Form.Item name="max_videos" label="Số video mới nhất lấy mỗi lượt" rules={[{ required: true }]}>
+            <InputNumber min={1} max={50} style={{ width: '100%' }} />
+          </Form.Item>
+          <Form.Item name="enabled" label="Bật" valuePropName="checked">
+            <Switch />
+          </Form.Item>
+        </Form>
+      </Modal>
+    </div>
+  )
+}
+
 export default function CollectorConfig() {
   return (
     <div>
@@ -371,6 +505,13 @@ export default function CollectorConfig() {
         khoảng ngày cấu hình, chỉ hỗ trợ YouTube.
       </Text>
       <SearchQueriesPanel />
+
+      <Title level={5} style={{ marginTop: 32 }}>Kênh theo dõi (YouTube)</Title>
+      <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>
+        Mỗi lượt lấy bình luận của các video mới nhất của kênh. Rẻ hơn tìm từ khóa rất nhiều
+        (khoảng 2 unit + 1 unit/video, so với 100 unit/từ khóa) nên phù hợp để theo dõi đều các nguồn tin.
+      </Text>
+      <TrackedChannelsPanel />
 
       <Title level={5} style={{ marginTop: 32 }}>Video theo dõi cố định</Title>
       <Text type="secondary" style={{ display: 'block', marginBottom: 16 }}>

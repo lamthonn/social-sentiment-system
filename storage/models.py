@@ -26,6 +26,13 @@ class RawPost(Base):
     category: Mapped[str | None] = mapped_column(String(255), nullable=True, index=True)
     posted_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
     collected_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    # Ngữ cảnh bình luận (Lâm thêm sau, đều nullable - dữ liệu cũ để NULL):
+    # video chứa bình luận (nối với video_meta), bình luận cha (NULL = bình luận gốc),
+    # số like và số trả lời tại lần thu thập gần nhất.
+    video_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)
+    parent_id: Mapped[str | None] = mapped_column(String(128), nullable=True)
+    like_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    reply_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
 
     results: Mapped[list["AnalysisResult"]] = relationship(back_populates="post")
 
@@ -200,3 +207,52 @@ class SchedulerState(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True)
     enabled: Mapped[bool] = mapped_column(Boolean, default=False)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class TrackedChannel(Base):
+    """Kênh YouTube theo dõi cố định: mỗi lượt lấy N video mới nhất từ playlist uploads của kênh
+    (playlistItems.list chỉ tốn 1 unit quota, rẻ hơn search.list 100 lần)."""
+    __tablename__ = "tracked_channels"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    platform: Mapped[str] = mapped_column(String(50), default="youtube")
+    channel_id: Mapped[str] = mapped_column(String(128))  # dạng UCxxxx
+    label: Mapped[str | None] = mapped_column(String(255), nullable=True)  # ghi chú, cũng là category của bình luận
+    max_videos: Mapped[int] = mapped_column(Integer, default=10)  # số video mới nhất lấy mỗi lượt
+    enabled: Mapped[bool] = mapped_column(Boolean, default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class VideoMeta(Base):
+    """Thông tin mô tả của video đã thu thập (tiêu đề, kênh, chủ đề...) - ngữ cảnh để hiểu bình luận.
+    Mỗi video một dòng, cập nhật lại mỗi lượt thu thập. Số liệu thay đổi theo thời gian ở video_stats_snapshots."""
+    __tablename__ = "video_meta"
+    __table_args__ = (UniqueConstraint("platform", "video_id", name="uq_video_meta_platform_video"),)
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    platform: Mapped[str] = mapped_column(String(50), default="youtube")
+    video_id: Mapped[str] = mapped_column(String(128), index=True)
+    title: Mapped[str] = mapped_column(Text, default="")
+    description: Mapped[str | None] = mapped_column(Text, nullable=True)
+    channel_id: Mapped[str | None] = mapped_column(String(128), nullable=True, index=True)  # kênh đăng video (công khai)
+    channel_title: Mapped[str | None] = mapped_column(String(255), nullable=True)
+    category_id: Mapped[str | None] = mapped_column(String(16), nullable=True, index=True)  # categoryId của YouTube
+    tags: Mapped[str | None] = mapped_column(Text, nullable=True)  # JSON list
+    default_language: Mapped[str | None] = mapped_column(String(16), nullable=True)
+    published_at: Mapped[datetime | None] = mapped_column(DateTime, nullable=True)
+    first_seen_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+
+
+class VideoStatSnapshot(Base):
+    """Số view/like/comment của video tại một thời điểm - mỗi lượt thu thập thêm một dòng
+    để có chuỗi thời gian cho phân tích xu hướng. NULL nếu YouTube ẩn số liệu đó."""
+    __tablename__ = "video_stats_snapshots"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True)
+    platform: Mapped[str] = mapped_column(String(50), default="youtube")
+    video_id: Mapped[str] = mapped_column(String(128), index=True)
+    captured_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, index=True)
+    view_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    like_count: Mapped[int | None] = mapped_column(Integer, nullable=True)
+    comment_count: Mapped[int | None] = mapped_column(Integer, nullable=True)

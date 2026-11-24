@@ -22,6 +22,12 @@ UPGRADES = [
     # raw_posts.category do Lâm thêm sau - đảm bảo DB tạo từ bản cũ cũng có cột này
     "ALTER TABLE raw_posts ADD COLUMN IF NOT EXISTS category VARCHAR(255)",
     "CREATE INDEX IF NOT EXISTS ix_raw_posts_category ON raw_posts (category)",
+    # Lâm: raw_posts thêm ngữ cảnh bình luận (video, bình luận cha, like, số trả lời)
+    "ALTER TABLE raw_posts ADD COLUMN IF NOT EXISTS video_id VARCHAR(128)",
+    "ALTER TABLE raw_posts ADD COLUMN IF NOT EXISTS parent_id VARCHAR(128)",
+    "ALTER TABLE raw_posts ADD COLUMN IF NOT EXISTS like_count INTEGER",
+    "ALTER TABLE raw_posts ADD COLUMN IF NOT EXISTS reply_count INTEGER",
+    "CREATE INDEX IF NOT EXISTS ix_raw_posts_video_id ON raw_posts (video_id)",
 ]
 
 

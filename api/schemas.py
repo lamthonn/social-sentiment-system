@@ -62,6 +62,25 @@ class TrackedVideoOut(BaseModel):
     created_at: datetime
 
 
+class TrackedChannelIn(BaseModel):
+    channel_id: str  # chấp nhận UCxxxx, URL kênh hoặc @handle - server tự đổi sang UCxxxx
+    label: str | None = None
+    max_videos: int = 10
+    enabled: bool = True
+
+
+class TrackedChannelOut(BaseModel):
+    model_config = ConfigDict(from_attributes=True)
+
+    id: int
+    platform: str
+    channel_id: str
+    label: str | None
+    max_videos: int
+    enabled: bool
+    created_at: datetime
+
+
 class SchedulerStatusOut(BaseModel):
     enabled: bool
     poll_interval_minutes: int
