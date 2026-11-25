@@ -15,6 +15,7 @@ import Pipeline from './Pipeline'
 import Admin from './Admin'
 import PostsTable from './PostsTable'
 import CollectorConfig from './CollectorConfig'
+import VideosTab from './VideosTab'
 
 const { Header, Sider, Content } = Layout
 const RANK: Record<Role, number> = { viewer: 0, analyst: 1, admin: 2 }
@@ -63,6 +64,7 @@ export default function App() {
     // dữ liệu thô chưa che PII -> chỉ quản trị (API /posts cũng chặn ở security_mw)
     collect: <Tabs items={[
       ...(user.role === 'admin' ? [{ key: 'raw', label: 'Dữ liệu thô', children: <PostsTable /> }] : []),
+      { key: 'videos', label: 'Video', children: <VideosTab /> },
       { key: 'config', label: 'Cấu hình thu thập', children: <CollectorConfig /> },
     ]} />,
     models: <Models isAdmin={user.role === 'admin'} />,

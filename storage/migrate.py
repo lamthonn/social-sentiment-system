@@ -36,6 +36,10 @@ def migrate() -> None:
     with engine.begin() as conn:
         for sql in UPGRADES:
             conn.execute(text(sql))
+    # Lâm: nạp từ khóa/kênh theo dõi mặc định vào DB mới (chỉ khi bảng trống)
+    from storage.seed import seed_collector
+
+    seed_collector()
 
 
 if __name__ == "__main__":

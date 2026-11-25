@@ -224,3 +224,15 @@ def test_collect_video_items_skips_videos_without_comments(db, monkeypatch):
     results = pipeline._collect_video_items(items, "chủ đề", None, True)
     assert results == {"vid1": {"title": "có bình luận", "inserted": 1}, "vid0": {"title": "không có", "inserted": 0}}
     assert fake.page_calls == 1
+
+
+def test_trending_skips_non_vietnamese_videos(db, monkeypatch):
+    fake = FakeYouTube([[_thread("c1")]])
+    fake.install(monkeypatch)
+    items = [
+        {"id": "vi1", "snippet": {"title": "a", "defaultLanguage": "vi"}, "statistics": {"commentCount": "1"}},
+        {"id": "none1", "snippet": {"title": "b"}, "statistics": {"commentCount": "1"}},
+        {"id": "en1", "snippet": {"title": "c", "defaultAudioLanguage": "en-US"}, "statistics": {"commentCount": "1"}},
+    ]
+    monkeypatch.setattr(youtube_client, "fetch_most_popular", lambda region_code, max_results: items)
+    assert set(pipeline.collect_youtube_trending()) == {"vi1", "none1"}

@@ -15,6 +15,36 @@ Người sửa ghi tên thật (Nam hoặc Lâm). Nếu Claude làm trên máy c
 
 ---
 
+## 2026-11-25 · Lâm (cùng Claude) · Đưa từ khóa và kênh theo dõi mặc định vào dữ liệu khởi tạo
+- **Sửa gì:** Cấu hình thu thập mặc định (5 từ khóa, 11 kênh theo dõi, trong đó VTV24 và Báo Tuổi Trẻ ở trạng thái tắt) nằm trong `config/collector_seed.json`. `python -m storage.migrate` (cũng chạy trong `start.bat`) nạp file này vào DB mới. Chỉ nạp vào bảng **đang trống** (`search_queries`, `tracked_channels` kiểm tra riêng), nên máy đã có cấu hình hoặc đã xóa có chủ ý không bị ghi đè, chạy lại không nhân đôi. Muốn đổi mặc định thì sửa file JSON, không cần sửa code. Đổi mặc định `COLLECTOR_POLL_INTERVAL_MINUTES` trong `.env.example` từ 60 sang 180 (lý do ở mục trước, về quota).
+- **File chính:** `config/collector_seed.json` (mới), `storage/seed.py` (mới), `storage/migrate.py` (gọi seed ở cuối `migrate()`), `.env.example`, `tests/test_seed.py` (mới, 2 test)
+- **Ghi chú:**
+  - Nam: sau khi ghép, DB của bạn nếu đang trống sẽ có sẵn các nguồn này. DB đã có từ khóa hoặc kênh thì không đổi gì.
+  - Seed chỉ chứa nguồn thu thập, không chứa nút bật/tắt "Thu thập tự động" (vẫn tắt mặc định, bật trên giao diện).
+  - Chưa chạy migrate trên Postgres thật vì lúc làm DB đang tắt; đã kiểm bằng SQLite trong test.
+
+## 2026-11-25 · Lâm (cùng Claude) · Xóa dữ liệu giá vàng cũ, thêm từ khóa và nguồn, lọc video thịnh hành tiếng Anh
+- **Sửa gì:**
+  - **Bắt đầu lại dữ liệu:** xóa 1.875 bình luận `category = 'giá vàng'` thu trước 24/11 (chưa có dòng nào trong `clean_posts` hay `analysis_results`). Giữ 141 bình luận không có category (bình luận một video nhạc, không phải giá vàng). Đã sao lưu trước khi xóa (`data/backups/20261125-092029-sss_db_nckh.sql.gz`, chưa mã hóa vì chưa đặt `DATA_ENCRYPTION_KEY`).
+  - **Thêm từ khóa** (5 video/lượt, trong 3 ngày): `giá xăng`, `chứng khoán`, `bão lũ miền Trung`, `bóng đá Việt Nam`. Từ khóa `giá vàng` giữ nguyên.
+  - **Thêm 8 kênh theo dõi** (5 video mới nhất/lượt): Hoàng Thùy Linh, ERIK (âm nhạc), Trực Tiếp Game, Bi Huỳnh Gaming (game), Toga TV (gia đình), W2W Movie (phim), bqThanh (giải trí), Ống Kính Sài Gòn (đời sống). Tắt VTV24 và Báo Tuổi Trẻ vì mọi video đều tắt bình luận.
+  - **Chu kỳ thu thập 60 → 180 phút** (`COLLECTOR_POLL_INTERVAL_MINUTES` trong `.env`). Lý do: 5 từ khóa × 100 unit × 24 lượt = 12.000 unit/ngày, vượt hạn mức 10.000. Với 180 phút còn khoảng 8 lượt/ngày, ước tính 6.000–7.000 unit/ngày.
+  - **Sửa lỗi trending:** chart `mostPopular` của VN lẫn video quốc tế (skibidi, MrBeast, Marvel), kéo về hơn 17.000 bình luận tiếng Anh chỉ trong một lượt. Nay bỏ video có `defaultLanguage` hoặc `defaultAudioLanguage` khác `vi`; video không khai báo ngôn ngữ vẫn giữ. Thêm 1 test.
+- **File chính:** `collector/pipeline.py` (`_is_vietnamese_video`), `tests/test_collector.py`, cấu hình trong DB (`search_queries`, `tracked_channels`), `.env`
+- **Ghi chú:**
+  - **Cần khởi động lại API** để nhận chu kỳ 180 phút trong `.env`. Trước khi khởi động lại, chu kỳ 60 phút với 5 từ khóa sẽ ngốn quota rất nhanh.
+  - Các bình luận tiếng Anh từ video trending đã thu trước khi sửa vẫn còn trong `raw_posts` (category `trending`, khoảng 17.000 dòng, thuộc 3 video skibidi / MrBeast Gaming / Marvel). Chưa xóa, chờ quyết định.
+  - Pipeline xu hướng của Nam: category của bình luận chính là chuỗi từ khóa, nên xu hướng được tính riêng theo từng chủ đề.
+
+## 2026-11-25 · Lâm (cùng Claude) · T-10: tab "Video" xem thông tin video và lượt like
+- **Sửa gì:** Thêm tab **Video** trong trang Thu thập: bảng video (tiêu đề, kênh, lượt xem, like, bình luận, số bình luận đã thu; tìm theo tiêu đề hoặc kênh; sắp xếp theo xem, thích, bình luận, ngày đăng). Bấm một video mở ngăn chi tiết: mô tả, tag, biểu đồ lượt xem và like theo thời gian (từ `video_stats_snapshots`), 10 bình luận nhiều like nhất. Số liệu trong bảng là lần chụp gần nhất. Bình luận chỉ hiện `clean_text` (đã che PII), không bao giờ trả nội dung gốc.
+- **File chính:** `api/main.py` (`GET /videos`, `GET /videos/{video_id}`), `api/schemas.py`, `api/security_mw.py`, `frontend/src/VideosTab.tsx` (mới), `frontend/src/api.ts`, `frontend/src/App.tsx`, `tests/test_videos_api.py` (mới, 4 test)
+- **Ghi chú:**
+  - Không đổi schema DB, không cần migrate.
+  - `RULES` thêm `videos.*` cho phân tích viên trở lên (chỉ GET).
+  - Tab Video hiện cho cả analyst; admin thấy thêm tab Dữ liệu thô như cũ.
+  - Chưa thử trên Postgres thật vì lúc làm DB đang tắt; đã kiểm bằng SQLite trong test và `npm run build`.
+
 ## 2026-11-24 · Lâm (cùng Claude) · Gộp toàn bộ tài liệu .md thành hai file
 - **Sửa gì:** Xóa 17 file .md (`PROJECT.md`, `README.md`, `HUONG_DAN_CHAY.md`, `HUONG_DAN_SU_DUNG.md`, `collector/README.md`, `preprocessing/README.md`, `frontend/README.md`, `tools/README.md`, `docs/*.md`, `docs/slide/KICH_BAN_THUYET_TRINH.md`, `team/*.md`). Viết lại thành `TONG_QUAN.md` (ý tưởng, thiết kế, ứng dụng, kết quả, phân công) và file này (lịch sử sửa đổi). `CLAUDE.md` được giữ và sửa lại cho khỏi trỏ vào file đã xóa.
 - **File chính:** `TONG_QUAN.md`, `LICH_SU_CHINH_SUA.md`, `CLAUDE.md`
