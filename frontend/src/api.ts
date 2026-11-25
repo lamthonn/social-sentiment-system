@@ -124,6 +124,34 @@ export interface TrackedChannel {
 
 export type TrackedChannelInput = Omit<TrackedChannel, 'id' | 'platform' | 'created_at'>
 
+export interface VideoInfo {
+  platform: string
+  video_id: string
+  title: string
+  channel_title: string | null
+  published_at: string | null
+  view_count: number | null
+  like_count: number | null
+  comment_count: number | null
+  captured_at: string | null
+  collected_comments: number
+}
+
+export interface VideoList {
+  items: VideoInfo[]
+  total: number
+  page: number
+  page_size: number
+}
+
+export interface VideoDetail {
+  video: VideoInfo
+  description: string | null
+  tags: string[]
+  snapshots: { captured_at: string; view_count: number | null; like_count: number | null; comment_count: number | null }[]
+  top_comments: { post_id: string; text: string | null; like_count: number | null; reply_count: number | null; is_reply: boolean }[]
+}
+
 export interface SchedulerStatus {
   enabled: boolean
   poll_interval_minutes: number
@@ -166,6 +194,12 @@ export const api = {
     update: (id: number, payload: TrackedChannelInput) =>
       request<TrackedChannel>(`/tracked-channels/${id}`, { method: 'PUT', body: JSON.stringify(payload) }),
     remove: (id: number) => request<void>(`/tracked-channels/${id}`, { method: 'DELETE' }),
+  },
+
+  videos: {
+    list: (p: { page: number; pageSize: number; q?: string; sort: string }) =>
+      request<VideoList>(`/videos?${qs({ page: p.page, page_size: p.pageSize, q: p.q, sort: p.sort })}`),
+    detail: (videoId: string) => request<VideoDetail>(`/videos/${encodeURIComponent(videoId)}`),
   },
 
   scheduler: {

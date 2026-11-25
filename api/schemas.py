@@ -89,3 +89,47 @@ class SchedulerStatusOut(BaseModel):
 
 class SchedulerToggleIn(BaseModel):
     enabled: bool
+
+
+# ===== Lâm: xem video đã thu thập và số liệu theo thời gian =====
+class VideoOut(BaseModel):
+    platform: str
+    video_id: str
+    title: str
+    channel_title: str | None
+    published_at: datetime | None
+    view_count: int | None  # lần chụp số liệu gần nhất; None nếu chưa có hoặc nền tảng ẩn
+    like_count: int | None
+    comment_count: int | None
+    captured_at: datetime | None
+    collected_comments: int  # số bình luận đã lưu trong raw_posts
+
+
+class VideoListResponse(BaseModel):
+    items: list[VideoOut]
+    total: int
+    page: int
+    page_size: int
+
+
+class VideoSnapshotOut(BaseModel):
+    captured_at: datetime
+    view_count: int | None
+    like_count: int | None
+    comment_count: int | None
+
+
+class VideoTopCommentOut(BaseModel):
+    post_id: str
+    text: str | None  # clean_text (đã che PII); None nếu bình luận chưa qua bước làm sạch
+    like_count: int | None
+    reply_count: int | None
+    is_reply: bool
+
+
+class VideoDetailOut(BaseModel):
+    video: VideoOut
+    description: str | None
+    tags: list[str]
+    snapshots: list[VideoSnapshotOut]
+    top_comments: list[VideoTopCommentOut]

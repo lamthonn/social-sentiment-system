@@ -1,7 +1,9 @@
 """Khung FastAPI (Giai đoạn 0) + endpoint đọc dữ liệu thô (Giai đoạn 2) + cấu hình collector."""
+import json
+
 from fastapi import Depends, FastAPI, HTTPException, Query
 from fastapi.middleware.cors import CORSMiddleware
-from sqlalchemy import func, select
+from sqlalchemy import and_, func, or_, select
 from sqlalchemy.orm import Session
 
 from api.schemas import (
@@ -16,13 +18,27 @@ from api.schemas import (
     TrackedChannelOut,
     TrackedVideoIn,
     TrackedVideoOut,
+    VideoDetailOut,
+    VideoListResponse,
+    VideoOut,
+    VideoSnapshotOut,
+    VideoTopCommentOut,
 )
 from api.app_routes import router as app_router
 from api.security_mw import AuthMiddleware
 from collector import scheduler as job_scheduler
 from config.settings import settings
 from storage.database import get_session
-from storage.models import AnalysisResult, RawPost, SearchQuery, TrackedChannel, TrackedVideo
+from storage.models import (
+    AnalysisResult,
+    CleanPost,
+    RawPost,
+    SearchQuery,
+    TrackedChannel,
+    TrackedVideo,
+    VideoMeta,
+    VideoStatSnapshot,
+)
 
 app = FastAPI(title="Social Sentiment System API", version="0.2.0")
 
@@ -271,3 +287,102 @@ def delete_tracked_channel(tracked_channel_id: int, session: Session = Depends(g
         raise HTTPException(status_code=404, detail="Không tìm thấy kênh")
     session.delete(row)
     session.commit()
+
+
+# ===== Lâm: xem video đã thu thập (thông tin + số liệu theo thời gian) =====
+_VIDEO_SORTS = {
+    "views": VideoStatSnapshot.view_count,
+    "likes": VideoStatSnapshot.like_count,
+    "comments": VideoStatSnapshot.comment_count,
+    "published": VideoMeta.published_at,
+}
+
+
+def _video_out(meta: VideoMeta, snap: VideoStatSnapshot | None, collected: int) -> VideoOut:
+    return VideoOut(
+        platform=meta.platform, video_id=meta.video_id, title=meta.title, channel_title=meta.channel_title,
+        published_at=meta.published_at,
+        view_count=snap.view_count if snap else None,
+        like_count=snap.like_count if snap else None,
+        comment_count=snap.comment_count if snap else None,
+        captured_at=snap.captured_at if snap else None,
+        collected_comments=collected,
+    )
+
+
+@app.get("/videos", response_model=VideoListResponse)
+def list_videos(
+    page: int = Query(1, ge=1),
+    page_size: int = Query(20, ge=1, le=100),
+    q: str | None = None,
+    sort: str = Query("views", pattern="^(views|likes|comments|published)$"),
+    session: Session = Depends(get_session),
+) -> VideoListResponse:
+    """Video đã thu thập kèm số liệu của lần chụp gần nhất; q tìm theo tiêu đề hoặc tên kênh."""
+    latest_snap_id = select(func.max(VideoStatSnapshot.id)).group_by(VideoStatSnapshot.platform, VideoStatSnapshot.video_id)
+    collected = (
+        select(RawPost.platform, RawPost.video_id, func.count().label("n"))
+        .where(RawPost.video_id.is_not(None)).group_by(RawPost.platform, RawPost.video_id).subquery()
+    )
+    query = (
+        select(VideoMeta, VideoStatSnapshot, func.coalesce(collected.c.n, 0))
+        .outerjoin(VideoStatSnapshot, and_(
+            VideoStatSnapshot.platform == VideoMeta.platform,
+            VideoStatSnapshot.video_id == VideoMeta.video_id,
+            VideoStatSnapshot.id.in_(latest_snap_id),
+        ))
+        .outerjoin(collected, and_(collected.c.platform == VideoMeta.platform, collected.c.video_id == VideoMeta.video_id))
+    )
+    count_query = select(func.count()).select_from(VideoMeta)
+    if q and q.strip():
+        pattern = f"%{q.strip()}%"
+        match = or_(VideoMeta.title.ilike(pattern), VideoMeta.channel_title.ilike(pattern))
+        query, count_query = query.where(match), count_query.where(match)
+
+    total = session.scalar(count_query) or 0
+    rows = session.execute(
+        query.order_by(_VIDEO_SORTS[sort].desc().nulls_last(), VideoMeta.id.desc())
+        .offset((page - 1) * page_size).limit(page_size)
+    ).all()
+    return VideoListResponse(
+        items=[_video_out(meta, snap, n) for meta, snap, n in rows], total=total, page=page, page_size=page_size,
+    )
+
+
+@app.get("/videos/{video_id}", response_model=VideoDetailOut)
+def get_video(video_id: str, session: Session = Depends(get_session)) -> VideoDetailOut:
+    """Chi tiết 1 video: mô tả, chuỗi số liệu theo thời gian, bình luận nhiều like nhất (chỉ clean_text)."""
+    meta = session.execute(select(VideoMeta).where(VideoMeta.video_id == video_id)).scalars().first()
+    if meta is None:
+        raise HTTPException(status_code=404, detail="Không tìm thấy video")
+
+    snaps = session.execute(
+        select(VideoStatSnapshot)
+        .where(VideoStatSnapshot.platform == meta.platform, VideoStatSnapshot.video_id == video_id)
+        .order_by(VideoStatSnapshot.captured_at)
+    ).scalars().all()
+    collected = session.scalar(
+        select(func.count()).select_from(RawPost).where(RawPost.platform == meta.platform, RawPost.video_id == video_id)
+    ) or 0
+    top = session.execute(
+        select(RawPost, CleanPost.clean_text)
+        .outerjoin(CleanPost, CleanPost.raw_post_id == RawPost.id)
+        .where(RawPost.platform == meta.platform, RawPost.video_id == video_id)
+        .order_by(RawPost.like_count.desc().nulls_last(), RawPost.id)
+        .limit(10)
+    ).all()
+    try:
+        tags = json.loads(meta.tags) if meta.tags else []
+    except ValueError:
+        tags = []
+    return VideoDetailOut(
+        video=_video_out(meta, snaps[-1] if snaps else None, collected),
+        description=meta.description,
+        tags=tags,
+        snapshots=[VideoSnapshotOut(
+            captured_at=s.captured_at, view_count=s.view_count, like_count=s.like_count, comment_count=s.comment_count,
+        ) for s in snaps],
+        top_comments=[VideoTopCommentOut(
+            post_id=p.post_id, text=text, like_count=p.like_count, reply_count=p.reply_count, is_reply=p.parent_id is not None,
+        ) for p, text in top],
+    )
