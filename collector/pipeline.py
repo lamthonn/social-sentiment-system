@@ -355,6 +355,13 @@ def collect_youtube_channel(
     return _collect_video_items(fetch_videos(video_ids), category, max_pages, incremental)
 
 
+def _is_vietnamese_video(item: dict) -> bool:
+    """Video không khai báo ngôn ngữ thì giữ (đa số video Việt không khai báo); khai báo khác 'vi' thì bỏ."""
+    snippet = item.get("snippet", {})
+    lang = snippet.get("defaultLanguage") or snippet.get("defaultAudioLanguage")
+    return not lang or lang.lower().startswith("vi")
+
+
 def collect_youtube_trending(
     region_code: str = "VN",
     max_videos: int = 20,
@@ -365,4 +372,6 @@ def collect_youtube_trending(
     from collector.youtube_client import fetch_most_popular
 
     items = fetch_most_popular(region_code=region_code, max_results=max_videos)
+    # chart mostPopular của VN vẫn lẫn video quốc tế (hàng chục nghìn bình luận tiếng Anh) -> bỏ video có ngôn ngữ khác tiếng Việt
+    items = [item for item in items if _is_vietnamese_video(item)]
     return _collect_video_items(items, "trending", max_pages, incremental)

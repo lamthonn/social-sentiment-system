@@ -128,7 +128,9 @@ Hàng đợi (Kafka/RabbitMQ) trong kiến trúc mục tiêu **chưa có**: các
 | Video thịnh hành | 1 unit + ~1 unit/video | `.env`: `COLLECTOR_TRENDING_ENABLED`, `COLLECTOR_TRENDING_REGION`, `COLLECTOR_TRENDING_MAX_VIDEOS`; category = `trending` |
 | Từ khóa tìm kiếm | **100 unit/từ khóa/lượt** | Giao diện: "Từ khóa tìm kiếm" |
 
-Quota miễn phí của YouTube là 10.000 unit/ngày, nên ưu tiên kênh và video theo dõi, dùng từ khóa vừa phải.
+Từ khóa và kênh mặc định nằm trong `config/collector_seed.json`, tự nạp vào DB mới khi chạy migrate (chỉ khi bảng trống).
+
+Quota miễn phí của YouTube là 10.000 unit/ngày, nên ưu tiên kênh và video theo dõi, dùng từ khóa vừa phải. Mỗi từ khóa tốn 100 unit mỗi lượt, nên chu kỳ và số từ khóa phải tính cùng nhau (5 từ khóa với chu kỳ 180 phút ≈ 4.000 unit/ngày chỉ riêng tìm kiếm). Video thịnh hành chỉ giữ video tiếng Việt hoặc không khai báo ngôn ngữ.
 
 **Chế độ tăng dần.** Bình luận được duyệt từ mới tới cũ. Lượt định kỳ dừng ngay khi gặp một trang không có bình luận mới, nên chỉ tốn khoảng 1 unit/video/lượt. Muốn lấy lại toàn bộ một video thì dùng CLI `python -m collector run`. Hạn chế: trả lời mới của bình luận cũ có thể bị bỏ sót ở chế độ này. Video có `commentCount = 0` được bỏ qua.
 
@@ -329,7 +331,7 @@ Quy trình thường dùng: thêm nguồn thu thập → bật thu thập tự �
 | Tổng quan | Phân bố cảm xúc, số bài theo ngày, theo chủ đề, cảnh báo giám sát | Mọi vai trò |
 | Xu hướng | Chủ đề, từ khóa, nhãn xu hướng và chiều cảm xúc | Mọi vai trò |
 | Dữ liệu đã phân tích | Bình luận đã che PII kèm nhãn; lọc theo chủ đề, quan điểm, cảm xúc, nền tảng, từ khóa | Phân tích viên trở lên |
-| Thu thập | Nút bật/tắt thu thập tự động; từ khóa, kênh, video theo dõi; dữ liệu thô (chỉ quản trị) | Phân tích viên trở lên |
+| Thu thập | Nút bật/tắt thu thập tự động; từ khóa, kênh, video theo dõi; tab Video (thông tin video, lượt xem, like theo thời gian, bình luận nhiều like); dữ liệu thô (chỉ quản trị) | Phân tích viên trở lên |
 | Mô hình | Kết quả các lần huấn luyện, chọn mô hình, các thực nghiệm bổ sung | Xem: mọi vai trò; chọn và huấn luyện: quản trị |
 | Pipeline | Chạy từng bước, lịch sử các lượt chạy | Phân tích viên trở lên |
 | Người dùng và nhật ký | Tài khoản, nhật ký truy cập | Quản trị |
@@ -386,6 +388,21 @@ Giới hạn: DP-SGD và học liên kết toàn bộ Transformer chưa làm đ�
 
 **Phạm vi không làm:** video/âm thanh/hình ảnh, cảm xúc theo khía cạnh (ABSA), học liên kết triển khai thật, cảnh báo khủng hoảng.
 
+### Nguồn dữ liệu ngoài YouTube (đề xuất, tra cứu 25/11/2026)
+
+Chưa có trong thuyết minh. Các mục có dấu * là kiến thức chung, chưa kiểm chứng lại bằng nguồn chính thức.
+
+| Nguồn | Khả năng lấy bình luận công khai | Đánh giá cho đề tài |
+|---|---|---|
+| **Threads** (API chính thức) | Có `keyword_search` trên bài công khai, cần quyền `threads_keyword_search` qua duyệt ứng dụng của Meta | **Nên thử đầu tiên**: tiếng Việt, tìm theo từ khóa, đúng kiểu dữ liệu ngắn mang cảm xúc |
+| **Telegram** (nhóm, kênh công khai)* | Đọc được bằng API chính thức (Telethon, cần `api_id`), không phải duyệt | Dễ làm, nhiều nhóm tiếng Việt về tài chính, tin tức; cần cân nhắc quyền riêng tư vì tin nhắn nhóm |
+| **Tin tức qua RSS và Google Trends***: không có bình luận | Tiêu đề, thời điểm, từ khóa tìm kiếm tăng nhanh | Dùng làm tín hiệu xu hướng chung để đối chiếu, không dùng để huấn luyện cảm xúc |
+| **Facebook** (Graph API) | Đọc bình luận của Page công khai cần tính năng Page Public Content Access, duyệt ứng dụng nghiêm ngặt; trường `id` của bình luận không còn trả về theo cách này | Nhiều người Việt dùng nhất nhưng khó nhất; Meta Content Library dành cho nhà nghiên cứu thuộc tổ chức học thuật, cần xin qua trường |
+| **TikTok** (Research API) | Chỉ mở cho nhà nghiên cứu tại Mỹ, châu Âu, Canada, Brazil theo trang chính thức | Có thể không đủ điều kiện từ Việt Nam; code TikTok hiện có chưa dùng được, xem lại trước khi tốn công |
+| **Reddit** (API) | Miễn phí cho nghiên cứu phi thương mại sau khi được duyệt; có nguồn tin cho rằng quyền truy cập công khai sẽ đóng vào 2027 (chưa xác nhận) | Ít nội dung tiếng Việt, ưu tiên thấp |
+
+Nguồn đã tra: trang Threads API `keyword-search`, trang Research Tools của TikTok for Developers, tài liệu Meta Page Public Content Access. Không nên cào HTML các trang chưa có API công khai vì rủi ro vi phạm điều khoản và Luật 91/2025/QH15.
+
 ---
 
 ## 6. Phân công và quy ước làm việc
@@ -394,7 +411,7 @@ Hai người, mỗi người một Claude, làm song song trên các module riê
 
 | Người | Phụ trách | Thư mục / file |
 |---|---|---|
-| **Lâm** | Thu thập, lưu trữ thô, hạ tầng chạy | `collector/`, `preprocessing/cleaner.py`, `teencode.py`, `tokenizer.py`, `pipeline.py`, `tests/`, `run.py`, `start.bat`, `docker-compose.yml`, trang Thu thập (`CollectorConfig.tsx`, `PostsTable.tsx`) |
+| **Lâm** | Thu thập, lưu trữ thô, hạ tầng chạy | `collector/`, `preprocessing/cleaner.py`, `teencode.py`, `tokenizer.py`, `pipeline.py`, `tests/`, `run.py`, `start.bat`, `docker-compose.yml`, trang Thu thập (`CollectorConfig.tsx`, `PostsTable.tsx`, `VideosTab.tsx`) |
 | **Nam** | Học máy, phân tích, an ninh, webapp | `preprocessing/text.py`, `pipeline/`, `models/`, `experiments/`, `security/`, `api/app_routes.py`, `api/security_mw.py`, `storage/migrate.py`, `storage/backup.py`, các trang webapp còn lại, `tools/` |
 
 Ranh giới giữa hai phần là **bảng CSDL** và **API**. Đổi những thứ này là đổi "hợp đồng" và phải báo người kia: các cột của `raw_posts` (Lâm ghi, Nam đọc), việc băm tác giả, việc mã hóa `content`.

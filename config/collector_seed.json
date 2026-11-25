@@ -1,0 +1,22 @@
+{
+  "search_queries": [
+    {"query": "giá vàng", "max_videos": 10, "published_within_days": 7},
+    {"query": "giá xăng", "max_videos": 5, "published_within_days": 3},
+    {"query": "chứng khoán", "max_videos": 5, "published_within_days": 3},
+    {"query": "bão lũ miền Trung", "max_videos": 5, "published_within_days": 3},
+    {"query": "bóng đá Việt Nam", "max_videos": 5, "published_within_days": 3}
+  ],
+  "tracked_channels": [
+    {"channel_id": "UCabsTV34JwALXKGMqHpvUiA", "label": "VTV24 (tin tức)", "max_videos": 10, "enabled": false},
+    {"channel_id": "UCXb3vvgNnFCMB7bEjSivTTA", "label": "Kenh14 (giải trí - đời sống)", "max_videos": 10},
+    {"channel_id": "UC47WI-kZXFf0H_f7pvaNCEQ", "label": "Báo Tuổi Trẻ (tin tức)", "max_videos": 10, "enabled": false},
+    {"channel_id": "UCMLVQcgkkFsTR7o8_sMt7lQ", "label": "Hoàng Thùy Linh (âm nhạc)", "max_videos": 5},
+    {"channel_id": "UCQnw0PycCRlSsT8fQlTDyBA", "label": "ERIK Official (âm nhạc)", "max_videos": 5},
+    {"channel_id": "UCc_gMV4N9vJtpy7GcMUHaVw", "label": "Trực Tiếp Game (game)", "max_videos": 5},
+    {"channel_id": "UCKHGKR_8mQcCuSOoagfpdBA", "label": "Bi Huỳnh Gaming (game)", "max_videos": 5},
+    {"channel_id": "UCDhxPj5HsdH-jn7rUx6A2yg", "label": "Toga TV (gia đình - thiếu nhi)", "max_videos": 5},
+    {"channel_id": "UCRyS_3HKtXlV-M4KC5E6i6Q", "label": "W2W Movie (phim)", "max_videos": 5},
+    {"channel_id": "UCshA0rciz2K3O0EezIpu03A", "label": "bqThanh (thử thách - giải trí)", "max_videos": 5},
+    {"channel_id": "UC1KtBXyqmGlhzf8KtSWHckg", "label": "Ống Kính Sài Gòn (đời sống)", "max_videos": 5}
+  ]
+}
